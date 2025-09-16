@@ -18,7 +18,8 @@ module.exports = async (req, res) => {
             return res.status(500).json({ error: 'API key is not configured on the server' });
         }
 
-        const FAL_API_URL = 'https://fal.ai/api/v1/run/fal-ai/nano-banana/edit';
+        // const FAL_API_URL = 'https://fal.ai/api/v1/run/fal-ai/nano-banana/edit';
+        const FAL_API_URL = 'https://fal.run/fal-ai/nano-banana/edit';
 
         const response = await fetch(FAL_API_URL, {
             method: 'POST',
