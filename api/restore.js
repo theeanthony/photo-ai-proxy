@@ -28,7 +28,7 @@ module.exports = async (req, res) => {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                prompt: "", // Send an empty prompt
+                prompt: "Turn into a monkey", // Send an empty prompt
                 image_urls: [image_data_uri]
             })
         });
