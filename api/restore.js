@@ -10,32 +10,33 @@ module.exports = async (req, res) => {
     try {
         const { image_data_uri } = req.body;
         if (!image_data_uri) {
-            return res.status(400).json({ error: 'Missing image_data_uri in request body' });
+            return res.status(400).json({ error: 'Missing image_data_uri' });
         }
 
         const FAL_API_KEY = process.env.FAL_API_KEY;
         if (!FAL_API_KEY) {
-            return res.status(500).json({ error: 'API key is not configured on the server' });
+            return res.status(500).json({ error: 'API key not configured' });
         }
 
-        // const FAL_API_URL = 'https://fal.ai/api/v1/run/fal-ai/nano-banana/edit';
         const FAL_API_URL = 'https://fal.run/fal-ai/nano-banana';
 
         const response = await fetch(FAL_API_URL, {
             method: 'POST',
-            headers: { /* ... */ },
+            headers: {
+                'Authorization': `Key ${FAL_API_KEY}`,
+                'Content-Type': 'application/json'
+            },
             body: JSON.stringify({
-                // Use the fixed, high-quality prompt
                 prompt: "Restore and enhance this old photo. Improve clarity, fix colors, and correct lighting.",
                 image_urls: [image_data_uri],
-                // Tell the API to generate two results
-                num_images: 2 
+                num_images: 2
             })
         });
 
         if (!response.ok) {
-            const errorData = await response.json();
-            return res.status(response.status).json(errorData);
+            const errorText = await response.text();
+            console.error("Error from fal.ai (restore):", errorText);
+            return res.status(response.status).json({ error: 'Error from fal.ai API', details: errorText });
         }
 
         const data = await response.json();
