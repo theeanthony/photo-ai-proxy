@@ -19,7 +19,7 @@ module.exports = async (req, res) => {
             return res.status(500).json({ error: 'API key is not configured on the server' });
         }
 
-        const FAL_API_URL = 'https://fal.run/fal-ai/topaz/upscale/image';
+        const FAL_API_URL = 'https://fal.run/fal-ai/fast-sdxl'; // Or whatever the specific model is called
 
         const response = await fetch(FAL_API_URL, {
             method: 'POST',
