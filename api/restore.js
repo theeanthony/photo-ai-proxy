@@ -23,13 +23,13 @@ module.exports = async (req, res) => {
 
         const response = await fetch(FAL_API_URL, {
             method: 'POST',
-            headers: {
-                'Authorization': `Key ${FAL_API_KEY}`,
-                'Content-Type': 'application/json'
-            },
+            headers: { /* ... */ },
             body: JSON.stringify({
-                prompt: "Turn into a monkey", // Send an empty prompt
-                image_urls: [image_data_uri]
+                // Use the fixed, high-quality prompt
+                prompt: "Restore and enhance this old photo. Improve clarity, fix colors, and correct lighting.",
+                image_urls: [image_data_uri],
+                // Tell the API to generate two results
+                num_images: 2 
             })
         });
 
