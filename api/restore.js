@@ -27,7 +27,7 @@ module.exports = async (req, res) => {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                prompt: "Restore and enhance this old photo. Improve clarity, fix colors, and correct lighting.",
+                prompt: "repair this photo (remove dust, scratches, and noise)",
                 image_urls: [image_data_uri],
                 num_images: 2
             })
