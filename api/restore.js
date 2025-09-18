@@ -19,7 +19,7 @@ module.exports = async (req, res) => {
         }
 
         // const FAL_API_URL = 'https://fal.ai/api/v1/run/fal-ai/nano-banana/edit';
-        const FAL_API_URL = 'https://fal.run/fal-ai/nano-banana/edit';
+        const FAL_API_URL = 'https://fal.run/fal-ai/nano-banana';
 
         const response = await fetch(FAL_API_URL, {
             method: 'POST',
