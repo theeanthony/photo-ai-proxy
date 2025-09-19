@@ -8,9 +8,10 @@ module.exports = async (req, res) => {
     }
 
     try {
-        const { prompt, image_data_uri } = req.body;
-        if (!prompt || !image_data_uri) {
-            return res.status(400).json({ error: 'Missing prompt or image_data_uri' });
+        // The only parameter we need from the app is the prompt
+        const { prompt } = req.body;
+        if (!prompt) {
+            return res.status(400).json({ error: 'Missing prompt' });
         }
 
         const FAL_API_KEY = process.env.FAL_API_KEY;
@@ -26,11 +27,9 @@ module.exports = async (req, res) => {
                 'Authorization': `Key ${FAL_API_KEY}`,
                 'Content-Type': 'application/json'
             },
-            // FIX: The API expects the key "image_urls" (plural) with an array.
-             body: JSON.stringify({
-                // UPDATED PROMPT
-                prompt: "repair this photo (remove dust, scratches, and noise). Colorize this photo only if it is black and white",
-                image_urls: [image_data_uri]
+            // FIX: Remove the image_urls field. This model only accepts a prompt.
+            body: JSON.stringify({
+                prompt: prompt
             })
         });
 
