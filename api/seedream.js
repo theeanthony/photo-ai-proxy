@@ -8,10 +8,9 @@ module.exports = async (req, res) => {
     }
 
     try {
-        // Seedream primarily uses a prompt. We'll send a fixed one for now.
-        const { prompt } = req.body;
-        if (!prompt) {
-            return res.status(400).json({ error: 'Missing prompt' });
+        const { prompt, image_data_uri } = req.body;
+        if (!prompt || !image_data_uri) {
+            return res.status(400).json({ error: 'Missing prompt or image_data_uri' });
         }
 
         const FAL_API_KEY = process.env.FAL_API_KEY;
@@ -19,16 +18,18 @@ module.exports = async (req, res) => {
             return res.status(500).json({ error: 'API key not configured' });
         }
 
-        // The endpoint for the Seedream 4.0 model
-        const FAL_API_URL = 'https://fal.run/fal-ai/bytedance/seedream/v4/edit';
+        const FAL_API_URL = 'https://fal.run/fal-ai/bytedance/seedream/v4';
+
         const response = await fetch(FAL_API_URL, {
             method: 'POST',
             headers: {
                 'Authorization': `Key ${FAL_API_KEY}`,
                 'Content-Type': 'application/json'
             },
+            // FIX: The API expects the key "image_urls" (plural) with an array.
             body: JSON.stringify({
-                prompt: prompt
+                prompt: prompt,
+                image_urls: [image_data_uri] // Pass the image URI inside an array
             })
         });
 
@@ -39,7 +40,6 @@ module.exports = async (req, res) => {
         }
 
         const data = await response.json();
-        // Seedream returns an array of images, so we can pass it directly
         res.status(200).json(data);
 
     } catch (error) {
