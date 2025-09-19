@@ -18,7 +18,7 @@ module.exports = async (req, res) => {
             return res.status(500).json({ error: 'API key not configured' });
         }
 
-        const FAL_API_URL = 'https://fal.run/fal-ai/bytedance/seedream/v4';
+        const FAL_API_URL = 'https://fal.run/fal-ai/bytedance/seedream/v4/edit';
 
         const response = await fetch(FAL_API_URL, {
             method: 'POST',
