@@ -27,9 +27,10 @@ module.exports = async (req, res) => {
                 'Content-Type': 'application/json'
             },
             // FIX: The API expects the key "image_urls" (plural) with an array.
-            body: JSON.stringify({
-                prompt: prompt,
-                image_urls: [image_data_uri] // Pass the image URI inside an array
+             body: JSON.stringify({
+                // UPDATED PROMPT
+                prompt: "repair this photo (remove dust, scratches, and noise). Colorize this photo only if it is black and white",
+                image_urls: [image_data_uri]
             })
         });
 
