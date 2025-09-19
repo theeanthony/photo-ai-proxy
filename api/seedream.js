@@ -8,10 +8,10 @@ module.exports = async (req, res) => {
     }
 
     try {
-        // The only parameter we need from the app is the prompt
-        const { prompt } = req.body;
-        if (!prompt) {
-            return res.status(400).json({ error: 'Missing prompt' });
+        // 1. Accept both the prompt and the image URI from the app's request
+        const { prompt, image_data_uri } = req.body;
+        if (!prompt || !image_data_uri) {
+            return res.status(400).json({ error: 'Missing prompt or image_data_uri' });
         }
 
         const FAL_API_KEY = process.env.FAL_API_KEY;
@@ -19,6 +19,7 @@ module.exports = async (req, res) => {
             return res.status(500).json({ error: 'API key not configured' });
         }
 
+        // Using the /edit endpoint for image-to-image tasks
         const FAL_API_URL = 'https://fal.run/fal-ai/bytedance/seedream/v4/edit';
 
         const response = await fetch(FAL_API_URL, {
@@ -27,9 +28,10 @@ module.exports = async (req, res) => {
                 'Authorization': `Key ${FAL_API_KEY}`,
                 'Content-Type': 'application/json'
             },
-            // FIX: Remove the image_urls field. This model only accepts a prompt.
+            // 2. Send both the prompt and the image_urls array to the API
             body: JSON.stringify({
-                prompt: prompt
+                prompt: prompt,
+                image_urls: [image_data_uri]
             })
         });
 
