@@ -20,7 +20,7 @@ module.exports = async (req, res) => {
         }
 
         // The endpoint for the Seedream 4.0 model
-        const FAL_API_URL = 'fal-ai/bytedance/seedream/v4/edit';
+        const FAL_API_URL = 'https://fal-ai/bytedance/seedream/v4/edit';
 
         const response = await fetch(FAL_API_URL, {
             method: 'POST',
@@ -29,7 +29,7 @@ module.exports = async (req, res) => {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                prompt: "Restore this photo"
+                prompt: prompt
             })
         });
 
