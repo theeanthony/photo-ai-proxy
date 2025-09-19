@@ -29,7 +29,7 @@ module.exports = async (req, res) => {
             body: JSON.stringify({
                 prompt: "repair this photo (remove dust, scratches, and noise)",
                 image_urls: [image_data_uri],
-                num_images: 2
+                num_images: 1
             })
         });
 
