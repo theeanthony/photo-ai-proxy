@@ -20,8 +20,7 @@ module.exports = async (req, res) => {
         }
 
         // The endpoint for the Seedream 4.0 model
-        const FAL_API_URL = 'https://fal-ai/bytedance/seedream/v4/edit';
-
+        const FAL_API_URL = 'https://fal.run/fal-ai/bytedance/seedream/v4/edit';
         const response = await fetch(FAL_API_URL, {
             method: 'POST',
             headers: {
