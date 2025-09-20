@@ -26,10 +26,13 @@ module.exports = async (req, res) => {
                 'Authorization': `Key ${FAL_API_KEY}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                prompt: "repair this photo (remove dust, scratches, and noise)",
+         body: JSON.stringify({
+                prompt: "repair this photo (remove dust, scratches, and noise). Colorize this photo only if it is black and white",
                 image_urls: [image_data_uri],
-                num_images: 1
+                num_images: 2,
+                // Add these lines to enforce a consistent size
+                width: 1024,
+                height: 1024
             })
         });
 
