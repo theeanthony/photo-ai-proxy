@@ -29,9 +29,12 @@ module.exports = async (req, res) => {
                 'Content-Type': 'application/json'
             },
             // 2. The body now matches what the Seedream API requires
-            body: JSON.stringify({
-                prompt: prompt,
-                image_urls: [image_data_uri] // The key must be "image_urls" (plural) with an array
+          body: JSON.stringify({
+                prompt: "repair this photo (remove dust, scratches, and noise). Colorize this photo only if it is black and white",
+                image_urls: [image_data_uri],
+                // Add these lines to enforce a consistent size
+                width: 1024,
+                height: 1024
             })
         });
 
