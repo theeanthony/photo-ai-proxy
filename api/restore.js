@@ -7,7 +7,7 @@ module.exports = async (req, res) => {
     }
 
     try {
-        const { image_data_uri, prompt, mask_data_uri, target_width, target_height, num_images = 2 } = req.body;
+        const { image_data_uri, prompt, mask_data_uri, target_width, target_height, num_images = 1 } = req.body;
         if (!image_data_uri) {
             return res.status(400).json({ error: 'Missing image_data_uri' });
         }
