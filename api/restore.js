@@ -1,4 +1,4 @@
-// api/restore.js
+// api/restore.js (consolidated for all nano-banana uses)
 const fetch = require('node-fetch');
 
 module.exports = async (req, res) => {
@@ -7,7 +7,7 @@ module.exports = async (req, res) => {
     }
 
     try {
-        const { image_data_uri, prompt } = req.body;
+        const { image_data_uri, prompt, mask_data_uri, target_width, target_height, num_images = 2 } = req.body;
         if (!image_data_uri) {
             return res.status(400).json({ error: 'Missing image_data_uri' });
         }
@@ -19,8 +19,30 @@ module.exports = async (req, res) => {
 
         const FAL_API_URL = 'https://fal.run/fal-ai/nano-banana/edit';
 
-        // Use provided prompt or default
-        const effectivePrompt = prompt || "repair this photo (remove dust, scratches, and noise). Colorize this photo only if it is black and white";
+        // Default prompt based on context (or use provided)
+        let effectivePrompt = prompt || "repair this photo (remove dust, scratches, and noise). Colorize this photo only if it is black and white";
+
+        // Customize prompt for specific tools if detected (optional; client can always provide one)
+        if (prompt && prompt.includes('remove unwanted')) {
+            effectivePrompt = prompt; // For retouch
+        } else if (prompt && prompt.includes('expand and fill')) {
+            effectivePrompt = prompt; // For resize
+        }
+
+        // Build body
+        const body = {
+            prompt: effectivePrompt,
+            image_urls: [image_data_uri],
+            num_images,
+            // Default to 1024x1024, but override for resize
+            width: target_width || 1024,
+            height: target_height || 1024
+        };
+
+        // Add mask for retouch if provided
+        if (mask_data_uri) {
+            body.mask_url = mask_data_uri;
+        }
 
         const response = await fetch(FAL_API_URL, {
             method: 'POST',
@@ -28,18 +50,12 @@ module.exports = async (req, res) => {
                 'Authorization': `Key ${FAL_API_KEY}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                prompt: effectivePrompt,
-                image_urls: [image_data_uri],
-                num_images: 2,
-                width: 1024,
-                height: 1024
-            })
+            body: JSON.stringify(body)
         });
 
         if (!response.ok) {
             const errorText = await response.text();
-            console.error("Error from fal.ai (restore):", errorText);
+            console.error("Error from fal.ai (nano-banana):", errorText);
             return res.status(response.status).json({ error: 'Error from fal.ai API', details: errorText });
         }
 
