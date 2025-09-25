@@ -32,7 +32,7 @@ module.exports = async (req, res) => {
         // Build body
         const body = {
             prompt: effectivePrompt,
-            image_urls: [image_data_uri],
+            image_url: image_data_uri,
             num_images,
             // Default to 1024x1024, but override for resize
             width: target_width || 1024,
