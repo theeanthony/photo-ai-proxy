@@ -33,8 +33,7 @@ module.exports = async (req, res) => {
                 mask_url: mask_data_uri,   // Note: fal.ai inpainting uses mask_url
                 prompt: effectivePrompt,
                 num_images: 1, // Inpainting typically returns one image; adjust if model supports more
-                width: 1024,
-                height: 1024
+              
             })
         });
 
