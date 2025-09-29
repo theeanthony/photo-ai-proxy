@@ -1,4 +1,4 @@
-// api/seedream.js
+// api/seedream.js (Updated)
 const fetch = require('node-fetch');
 
 module.exports = async (req, res) => {
@@ -7,7 +7,8 @@ module.exports = async (req, res) => {
     }
 
     try {
-        const { image_data_uri, prompt } = req.body;
+        // ✅ CHANGED: Destructure target_width and target_height from the request body
+        const { image_data_uri, prompt, target_width, target_height } = req.body;
         if (!image_data_uri) {
             return res.status(400).json({ error: 'Missing image_data_uri' });
         }
@@ -19,7 +20,6 @@ module.exports = async (req, res) => {
 
         const FAL_API_URL = 'https://fal.run/fal-ai/bytedance/seedream/v4/edit';
 
-        // Use provided prompt or default
         const effectivePrompt = prompt || "repair this photo (remove dust, scratches, and noise). Colorize this photo only if it is black and white";
 
         const response = await fetch(FAL_API_URL, {
@@ -31,8 +31,9 @@ module.exports = async (req, res) => {
             body: JSON.stringify({
                 prompt: effectivePrompt,
                 image_urls: [image_data_uri],
-                width: 1024,
-                height: 1024
+                // ✅ CHANGED: Use the provided dimensions, or fall back to 1024x1024
+                width: target_width || 1024,
+                height: target_height || 1024
             })
         });
 
