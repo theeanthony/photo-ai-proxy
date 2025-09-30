@@ -17,10 +17,12 @@ module.exports = async (req, res) => {
             return res.status(500).json({ error: 'API key not configured' });
         }
 
-        const FAL_API_URL = 'https://fal.run/fal-ai/stable-diffusion-inpainting';
+        // --- ✅ UPDATED aPI URL ---
+        // Switched from stable-diffusion-inpainting to the new flux-lora model
+        const FAL_API_URL = 'https://fal.run/fal-ai/flux-lora/inpainting';
 
-        // Use provided prompt or default
-        const effectivePrompt = prompt || "remove unwanted objects and imperfections, fill naturally";
+        // Use provided prompt or a more descriptive default for this model
+        const effectivePrompt = prompt || "a high-quality photograph, remove the masked object";
 
         const response = await fetch(FAL_API_URL, {
             method: 'POST',
@@ -29,11 +31,10 @@ module.exports = async (req, res) => {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                image_url: image_data_uri, // Note: fal.ai inpainting uses image_url
-                mask_url: mask_data_uri,   // Note: fal.ai inpainting uses mask_url
+                image_url: image_data_uri, // The API expects 'image_url'
+                mask_url: mask_data_uri,   // The API expects 'mask_url'
                 prompt: effectivePrompt,
-                num_images: 1, // Inpainting typically returns one image; adjust if model supports more
-              
+                num_images: 1, 
             })
         });
 
