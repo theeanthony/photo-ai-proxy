@@ -1,8 +1,7 @@
 {
-  "functions": {
-    "api/**/*.js": {
-      "maxDuration": 60,
-      "includeFiles": "lib/**"
+    "functions": {
+        "api/**/*.js": {
+            "includeFiles": "lib/**"
+        }
     }
-  }
 }
