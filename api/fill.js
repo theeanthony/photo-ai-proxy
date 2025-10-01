@@ -1,5 +1,5 @@
 const fetch = require('node-fetch');
-const admin = require('../../lib/firebase-admin'); // Adjust path if needed
+const admin = require('../lib/firebase-admin'); // Correct path from /api
 const { v4: uuidv4 } = require('uuid');
 
 module.exports = async (req, res) => {
@@ -37,28 +37,38 @@ module.exports = async (req, res) => {
         }
 
         const falResult = await falResponse.json();
-        const tempResultUrl = falResult.images[0].url;
+        
+        // 3. PROCESS ALL RETURNED IMAGES (even if there's only one)
+        const uploadPromises = falResult.images.map(async (image) => {
+            // Download from Fal.ai's temporary URL
+            const imageResponse = await fetch(image.url);
+            const imageBuffer = await imageResponse.buffer();
 
-        // 3. DOWNLOAD RESULT FROM FAL.AI
-        const imageResponse = await fetch(tempResultUrl);
-        const imageBuffer = await imageResponse.buffer();
+            // Upload to your Firebase Storage
+            const bucket = admin.storage().bucket();
+            const fileName = `processed/${user_id}/${uuidv4()}.jpg`;
+            const file = bucket.file(fileName);
 
-        // 4. UPLOAD FINAL IMAGE TO FIREBASE STORAGE
-        const bucket = admin.storage().bucket();
-        const fileName = `processed/${user_id}/${uuidv4()}.jpg`;
-        const file = bucket.file(fileName);
-
-        await file.save(imageBuffer, {
-            metadata: { contentType: 'image/jpeg' }
+            await file.save(imageBuffer, { metadata: { contentType: 'image/jpeg' } });
+            
+            // Get the new permanent URL
+            const [permanentUrl] = await file.getSignedUrl({ action: 'read', expires: '03-09-2491' });
+            
+            // Return an object that matches the structure of FalFile in Swift
+            return { 
+                url: permanentUrl, 
+                content_type: image.content_type,
+                // You can add other properties from the original 'image' object if needed
+            };
         });
 
-        // 5. GET PERMANENT URL AND RESPOND TO CLIENT
-        const [permanentUrl] = await file.getSignedUrl({
-            action: 'read',
-            expires: '03-09-2491' // A far-future expiration date
-        });
+        const processedImages = await Promise.all(uploadPromises);
 
-        res.status(200).json({ final_image_url: permanentUrl });
+        // 4. RESPOND TO CLIENT with the consistent JSON structure
+        res.status(200).json({ 
+            images: processedImages, 
+            timings: falResult.timings 
+        });
 
     } catch (error) {
         console.error('Server error in /api/fill:', error);
