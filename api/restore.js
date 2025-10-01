@@ -1,5 +1,6 @@
 const fetch = require('node-fetch');
-const admin = require('../../lib/firebase-admin'); // Adjust path
+// ✅ CORRECTED: The path is now '../lib/firebase-admin'
+const admin = require('../lib/firebase-admin'); 
 const { v4: uuidv4 } = require('uuid');
 
 module.exports = async (req, res) => {
@@ -38,6 +39,7 @@ module.exports = async (req, res) => {
 
         if (!falResponse.ok) {
             const errorText = await falResponse.text();
+            console.error("Error from fal.ai (restore):", errorText);
             return res.status(falResponse.status).json({ error: 'Error from fal.ai API', details: errorText });
         }
 
