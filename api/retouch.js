@@ -22,7 +22,7 @@ module.exports = async (req, res) => {
         // 2. CALL FAL.AI API WITH THE URLS
         const FAL_API_URL = 'https://fal.run/fal-ai/flux-lora/inpainting';
         const effectivePrompt = prompt || "a high-quality photograph, remove the masked object";
-
+        console.log(effectivePrompt);
         const falResponse = await fetch(FAL_API_URL, {
             method: 'POST',
             headers: {
