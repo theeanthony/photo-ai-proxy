@@ -43,7 +43,7 @@ module.exports = async (req, res) => {
         }
 
         const falResult = await falResponse.json();
-        
+        console.log('Fal.ai timings structure:', JSON.stringify(falResult.timings));
         // Process results and upload to Firebase (unchanged)
         const uploadPromises = falResult.images.map(async (image) => {
             const imageResponse = await fetch(image.url);
