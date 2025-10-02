@@ -8,10 +8,11 @@ module.exports = async (req, res) => {
     }
 
     try {
-        // 1. RECEIVE FIREBASE URLS
-        const { image_url, mask_url, user_id } = req.body;
-        if (!image_url || !mask_url || !user_id) {
-            return res.status(400).json({ error: 'Missing image_url, mask_url, or user_id' });
+        // 1. RECEIVE FIREBASE URLS (MODIFIED)
+        // We no longer need mask_url, as the transparency of the image serves as the mask.
+        const { image_url, user_id } = req.body;
+        if (!image_url || !user_id) {
+            return res.status(400).json({ error: 'Missing image_url or user_id' });
         }
 
         const FAL_API_KEY = process.env.FAL_API_KEY;
@@ -19,7 +20,9 @@ module.exports = async (req, res) => {
             return res.status(500).json({ error: 'API key not configured' });
         }
 
-        // 2. CALL FAL.AI API
+        // 2. CALL FAL.AI API (MODIFIED)
+        // The body now only contains the image_url. The API will automatically use the
+        // alpha channel (transparency) as the mask.
         const FAL_API_URL = 'https://fal.run/fal-ai/flux-pro/v1/fill';
         const falResponse = await fetch(FAL_API_URL, {
             method: 'POST',
@@ -27,7 +30,7 @@ module.exports = async (req, res) => {
                 'Authorization': `Key ${FAL_API_KEY}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ image_url, mask_url })
+            body: JSON.stringify({ image_url }) // Pass only the image_url
         });
 
         if (!falResponse.ok) {
@@ -38,33 +41,29 @@ module.exports = async (req, res) => {
 
         const falResult = await falResponse.json();
         
-        // 3. PROCESS ALL RETURNED IMAGES (even if there's only one)
+        // 3. PROCESS ALL RETURNED IMAGES
+        // This part remains the same, as it correctly processes the API's output.
         const uploadPromises = falResult.images.map(async (image) => {
-            // Download from Fal.ai's temporary URL
             const imageResponse = await fetch(image.url);
             const imageBuffer = await imageResponse.buffer();
 
-            // Upload to your Firebase Storage
             const bucket = admin.storage().bucket();
             const fileName = `processed/${user_id}/${uuidv4()}.jpg`;
             const file = bucket.file(fileName);
 
             await file.save(imageBuffer, { metadata: { contentType: 'image/jpeg' } });
             
-            // Get the new permanent URL
             const [permanentUrl] = await file.getSignedUrl({ action: 'read', expires: '03-09-2491' });
             
-            // Return an object that matches the structure of FalFile in Swift
             return { 
                 url: permanentUrl, 
-                content_type: image.content_type,
-                // You can add other properties from the original 'image' object if needed
+                content_type: image.content_type || 'image/jpeg',
             };
         });
 
         const processedImages = await Promise.all(uploadPromises);
 
-        // 4. RESPOND TO CLIENT with the consistent JSON structure
+        // 4. RESPOND TO CLIENT
         res.status(200).json({ 
             images: processedImages, 
             timings: falResult.timings 
