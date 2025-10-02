@@ -1,5 +1,5 @@
 const fetch = require('node-fetch');
-const admin = require('../lib/firebase-admin'); // Correct path from /api
+const admin = require('../lib/firebase-admin');
 const { v4: uuidv4 } = require('uuid');
 
 module.exports = async (req, res) => {
@@ -8,11 +8,10 @@ module.exports = async (req, res) => {
     }
 
     try {
-        // 1. RECEIVE FIREBASE URLS (MODIFIED)
-        // We no longer need mask_url, as the transparency of the image serves as the mask.
-        const { image_url, user_id } = req.body;
-        if (!image_url || !user_id) {
-            return res.status(400).json({ error: 'Missing image_url or user_id' });
+        // ✅ FIX: Re-introduce mask_url as it's required by the API.
+        const { image_url, mask_url, user_id } = req.body;
+        if (!image_url || !mask_url || !user_id) {
+            return res.status(400).json({ error: 'Missing image_url, mask_url, or user_id' });
         }
 
         const FAL_API_KEY = process.env.FAL_API_KEY;
@@ -20,9 +19,7 @@ module.exports = async (req, res) => {
             return res.status(500).json({ error: 'API key not configured' });
         }
 
-        // 2. CALL FAL.AI API (MODIFIED)
-        // The body now only contains the image_url. The API will automatically use the
-        // alpha channel (transparency) as the mask.
+        // ✅ FIX: Add the required `prompt` and `mask_url` to the API call.
         const FAL_API_URL = 'https://fal.run/fal-ai/flux-pro/v1/fill';
         const falResponse = await fetch(FAL_API_URL, {
             method: 'POST',
@@ -30,7 +27,11 @@ module.exports = async (req, res) => {
                 'Authorization': `Key ${FAL_API_KEY}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ image_url }) // Pass only the image_url
+            body: JSON.stringify({
+                image_url,
+                mask_url,
+                prompt: "expand the image with photorealistic details that match the style, lighting, and perspective of the original photo"
+            })
         });
 
         if (!falResponse.ok) {
@@ -41,8 +42,7 @@ module.exports = async (req, res) => {
 
         const falResult = await falResponse.json();
         
-        // 3. PROCESS ALL RETURNED IMAGES
-        // This part remains the same, as it correctly processes the API's output.
+        // This part remains correct for processing the results.
         const uploadPromises = falResult.images.map(async (image) => {
             const imageResponse = await fetch(image.url);
             const imageBuffer = await imageResponse.buffer();
@@ -63,7 +63,6 @@ module.exports = async (req, res) => {
 
         const processedImages = await Promise.all(uploadPromises);
 
-        // 4. RESPOND TO CLIENT
         res.status(200).json({ 
             images: processedImages, 
             timings: falResult.timings 
@@ -74,3 +73,4 @@ module.exports = async (req, res) => {
         res.status(500).json({ error: 'An unexpected error occurred.', details: error.message });
     }
 };
+
