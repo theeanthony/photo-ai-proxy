@@ -13,7 +13,7 @@ module.exports = async (req, res) => {
             return res.status(400).json({ error: 'Missing image_url, mask_url, or user_id' });
         }
 
-        // ✅ ADDED: Log incoming body for debugging (remove in production)
+        // ✅ Log incoming body for debugging (remove in production)
         console.log('Received body:', { image_url: !!image_url, mask_url: !!mask_url, user_id: !!user_id });
 
         const FAL_API_KEY = process.env.FAL_API_KEY;
@@ -28,13 +28,11 @@ module.exports = async (req, res) => {
                 'Authorization': `Key ${FAL_API_KEY}`,
                 'Content-Type': 'application/json'
             },
-            // ✅ FIX: Wrap parameters in { input: { ... } } to match Fal.ai schema
+            // ✅ FIX: Use flat JSON body (no 'input' wrapper) for direct synchronous POST
             body: JSON.stringify({
-                input: {
-                    image_url,
-                    mask_url,
-                    prompt: "expand the image with photorealistic details that match the style, lighting, and perspective of the original photo"
-                }
+                image_url,
+                mask_url,
+                prompt: "expand the image with photorealistic details that match the style, lighting, and perspective of the original photo"
             })
         });
 
@@ -46,6 +44,7 @@ module.exports = async (req, res) => {
 
         const falResult = await falResponse.json();
         
+        // Process results and upload to Firebase (unchanged)
         const uploadPromises = falResult.images.map(async (image) => {
             const imageResponse = await fetch(image.url);
             const imageBuffer = await imageResponse.buffer();
