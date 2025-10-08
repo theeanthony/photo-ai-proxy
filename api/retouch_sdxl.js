@@ -2,7 +2,6 @@
 const fetch = require('node-fetch');
 const admin = require('../lib/firebase-admin');
 const { v4: uuidv4 } = require('uuid');
-const sharp = require('sharp'); // Add sharp for image processing
 
 module.exports = async (req, res) => {
     if (req.method !== 'POST') {
@@ -12,8 +11,8 @@ module.exports = async (req, res) => {
     try {
         const { image_url, mask_url, prompt, negative_prompt, user_id, width, height } = req.body;
         
-        if (!image_url || !mask_url || !user_id) {
-            return res.status(400).json({ error: 'Missing image_url, mask_url, or user_id' });
+        if (!image_url || !mask_url || !user_id || !width || !height) {
+            return res.status(400).json({ error: 'Missing required parameters: image_url, mask_url, user_id, width, or height' });
         }
         
         const FAL_API_KEY = process.env.FAL_API_KEY;
@@ -21,32 +20,42 @@ module.exports = async (req, res) => {
             return res.status(500).json({ error: 'API key not configured' });
         }
         
-        // --- ENHANCED: Verify image dimensions match what was sent ---
         console.log("Received dimensions:", { width, height });
         
         const FAL_API_URL = 'https://fal.run/fal-ai/fast-sdxl/inpainting';
         
-        const effectivePrompt = prompt;
-        const effectiveNegativePrompt = negative_prompt;
+        const effectivePrompt = prompt || "seamlessly fill the masked area, maintain original style and quality";
+        const effectiveNegativePrompt = negative_prompt || "blurry, low quality, distorted";
         
         console.log("Using Prompt:", effectivePrompt);
         console.log("Using Negative Prompt:", effectiveNegativePrompt);
+        console.log("Image URL:", image_url);
+        console.log("Mask URL:", mask_url);
         
-        // --- ENHANCED: Call Fal.ai with explicit dimensions ---
+        // Call Fal.ai with explicit dimensions
+        const falPayload = {
+            image_url: image_url,
+            mask_url: mask_url,
+            prompt: effectivePrompt,
+            negative_prompt: effectiveNegativePrompt,
+            image_size: {
+                width: width,
+                height: height
+            },
+            num_inference_steps: 25,
+            guidance_scale: 7.5,
+            sync_mode: true
+        };
+        
+        console.log("Sending to Fal.ai:", JSON.stringify(falPayload, null, 2));
+        
         const falResponse = await fetch(FAL_API_URL, {
             method: 'POST',
             headers: {
                 'Authorization': `Key ${FAL_API_KEY}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
-                image_url: image_url,
-                mask_url: mask_url,
-                prompt: effectivePrompt,
-                negative_prompt: effectiveNegativePrompt,
-                image_size: { width, height }, // Try this format first
-                sync_mode: true
-            })
+            body: JSON.stringify(falPayload)
         });
         
         if (!falResponse.ok) {
@@ -59,7 +68,12 @@ module.exports = async (req, res) => {
         }
         
         const falResult = await falResponse.json();
-        console.log("Received Fal.ai Result:", JSON.stringify(falResult, null, 2));
+        console.log("Fal.ai response:", JSON.stringify(falResult, null, 2));
+        
+        if (!falResult.images || !falResult.images[0]) {
+            console.error("No images in Fal.ai response");
+            return res.status(500).json({ error: 'No images returned from Fal.ai' });
+        }
         
         const resultUrl = falResult.images[0].url;
         let imageBuffer;
@@ -70,36 +84,15 @@ module.exports = async (req, res) => {
             const base64Data = resultUrl.split(',')[1];
             imageBuffer = Buffer.from(base64Data, 'base64');
         } else {
-            console.log("Fetching image from standard URL.");
+            console.log("Fetching image from standard URL:", resultUrl);
             const imageResponse = await fetch(resultUrl);
+            if (!imageResponse.ok) {
+                throw new Error(`Failed to fetch result image: ${imageResponse.statusText}`);
+            }
             imageBuffer = await imageResponse.buffer();
         }
         
-        // --- NEW: Verify and correct image dimensions using sharp ---
-        const imageMetadata = await sharp(imageBuffer).metadata();
-        console.log("Result image dimensions:", { 
-            width: imageMetadata.width, 
-            height: imageMetadata.height 
-        });
-        
-        // Check if dimensions are swapped
-        if (imageMetadata.width === height && imageMetadata.height === width) {
-            console.log("WARNING: Dimensions appear to be swapped. Rotating image...");
-            imageBuffer = await sharp(imageBuffer)
-                .rotate(90) // or -90 depending on the swap direction
-                .toBuffer();
-        }
-        
-        // Ensure image matches expected dimensions
-        if (imageMetadata.width !== width || imageMetadata.height !== height) {
-            console.log(`Resizing image from ${imageMetadata.width}x${imageMetadata.height} to ${width}x${height}`);
-            imageBuffer = await sharp(imageBuffer)
-                .resize(width, height, {
-                    fit: 'fill',
-                    withoutEnlargement: false
-                })
-                .toBuffer();
-        }
+        console.log("Image buffer size:", imageBuffer.length, "bytes");
         
         // Upload to Firebase
         const bucket = admin.storage().bucket();
@@ -113,6 +106,8 @@ module.exports = async (req, res) => {
             }
         });
         
+        console.log("Uploaded to Firebase:", fileName);
+        
         const [permanentUrl] = await file.getSignedUrl({
             action: 'read',
             expires: '03-09-2491'
@@ -120,14 +115,15 @@ module.exports = async (req, res) => {
         
         res.status(200).json({ 
             images: [{ url: permanentUrl }],
-            timings: falResult.timings
+            timings: falResult.timings || {}
         });
         
     } catch (error) {
         console.error('Server error in /api/retouch_sdxl:', error);
         res.status(500).json({ 
             error: 'An unexpected error occurred.', 
-            details: error.message 
+            details: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
         });
     }
 };
