@@ -5,13 +5,11 @@ const admin = require('../lib/firebase-admin');
 const { v4: uuidv4 } = require('uuid');
 const { PredictionServiceClient } = require('@google-cloud/aiplatform');
 
-// --- Google Cloud Vertex AI Configuration ---
-// This client will automatically use the credentials set in your environment variables
+// This client automatically uses credentials from your Vercel environment variables
 const clientOptions = {
     apiEndpoint: 'us-central1-aiplatform.googleapis.com',
 };
 const predictionServiceClient = new PredictionServiceClient(clientOptions);
-// ---
 
 module.exports = async (req, res) => {
     if (req.method !== 'POST') {
@@ -20,7 +18,6 @@ module.exports = async (req, res) => {
 
     try {
         // 1. RECEIVE FIREBASE URLS AND USER_ID FROM CLIENT
-        // Note: For this task, we need both an image and a mask URL.
         const { image_url, mask_url, user_id } = req.body;
         if (!image_url || !mask_url || !user_id) {
             return res.status(400).json({ error: 'Missing image_url, mask_url, or user_id' });
@@ -41,25 +38,17 @@ module.exports = async (req, res) => {
             maskResponse.buffer()
         ]);
 
-        // 3. CALL VERTEX AI API WITH BASE64-ENCODED DATA
+        // 3. CALL VERTEX AI API WITH THE IMAGEN MODEL
         const endpoint = `projects/${GCLOUD_PROJECT}/locations/us-central1/publishers/google/models/imagegeneration@006`;
 
         const instance = {
-            prompt: '', // Prompt is empty for simple object removal
+            prompt: 'A person or object was here, please fill in the background seamlessly and photorealistically.',
             image: { bytesBase64Encoded: imageBuffer.toString('base64') },
             mask: { image: { bytesBase64Encoded: maskBuffer.toString('base64') } },
         };
 
-        const parameters = {
-            sampleCount: 1,
-            editMode: 'inpaint-removal',
-        };
-
-        const request = {
-            endpoint,
-            instances: [instance],
-            parameters,
-        };
+        const parameters = { sampleCount: 1, editMode: 'inpaint-removal' };
+        const request = { endpoint, instances: [instance], parameters };
 
         const [vertexResponse] = await predictionServiceClient.predict(request);
         const prediction = vertexResponse.predictions[0];
@@ -70,23 +59,14 @@ module.exports = async (req, res) => {
         const bucket = admin.storage().bucket();
         const fileName = `processed/${user_id}/${uuidv4()}.jpg`;
         const file = bucket.file(fileName);
+        await file.save(finalImageBuffer, { metadata: { contentType: 'image/jpeg' } });
 
-        await file.save(finalImageBuffer, {
-            metadata: { contentType: 'image/jpeg' }
-        });
+        // 5. GET THE PERMANENT URL AND RESPOND TO THE CLIENT
+        const [permanentUrl] = await file.getSignedUrl({ action: 'read', expires: '03-09-2491' });
 
-        // 5. GET THE PERMANENT, SIGNED URL AND RESPOND TO THE CLIENT
-        const [permanentUrl] = await file.getSignedUrl({
-            action: 'read',
-            expires: '03-09-2491'
-        });
-
-        // Respond with a structure that your client can handle
+        // Respond with a structure your iOS app expects
         res.status(200).json({
-            images: [{ // Sending in an array to match your other responses
-                url: permanentUrl,
-                // You might need to parse width/height if needed, or omit them
-            }]
+            images: [{ url: permanentUrl }]
         });
 
     } catch (error) {
