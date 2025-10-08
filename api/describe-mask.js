@@ -43,7 +43,7 @@ module.exports = async (req, res) => {
         // --- END OF FIX ---
 
         // 3. PREPARE THE MULTIMODAL PROMPT
-        const prompt = "In one short, simple phrase, describe the primary object or person highlighted in the second image (the mask). Examples: 'a red car', 'a man in a blue shirt', 'the bird on the branch'. Be concise.";
+        const prompt = "You are an expert image analyst. You will receive two images: an original photo and a corresponding mask. Your task is to identify and describe the primary object or person in the original photo that is located within the white area of the mask. Provide a concise, simple description. Examples: 'a brown dog', 'a man wearing a red hat', 'the blue car'.";
 
         // Fetch and convert images
         const imageParts = await Promise.all([
