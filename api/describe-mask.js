@@ -43,7 +43,7 @@ module.exports = async (req, res) => {
         // --- END OF FIX ---
 
         // 3. PREPARE THE MULTIMODAL PROMPT
-        const prompt = "You are an expert image analyst. You will receive two images: an original photo and a corresponding mask. Your task is to identify and describe the primary object or person in the original photo that is located within the white area of the mask. Provide a concise, simple description. Examples: 'a brown dog', 'a man wearing a red hat', 'the blue car'.";
+        const prompt = "You are an expert image analyst. Your task is to overlay the second image (a mask) onto the first image (the original photo). Then, generate a short description of the main person, object, or feature located within the white area of the mask. If the area contains abstract damage like a scratch or stain, describe the location of the damage. For example: 'a man's face', 'a red car', 'a tear on the child's shirt', 'a stain on the wall'.";
 
         // Fetch and convert images
         const imageParts = await Promise.all([
