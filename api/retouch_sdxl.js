@@ -11,7 +11,7 @@ module.exports = async (req, res) => {
 
     try {
         // 1. RECEIVE FIREBASE URLS AND PARAMS FROM CLIENT
-        const { image_url, mask_url, prompt, negative_prompt, user_id } = req.body; // Added negative_prompt to destructuring
+        const { image_url, mask_url, prompt, negative_prompt, user_id } = req.body;
         if (!image_url || !mask_url || !user_id) {
             return res.status(400).json({ error: 'Missing image_url, mask_url, or user_id' });
         }
@@ -22,18 +22,15 @@ module.exports = async (req, res) => {
         }
 
         // 2. CALL FAL.AI API WITH THE URLS
-        // --- NEW MODEL ENDPOINT ---
-        const FAL_API_URL = 'https://fal.run/fal-ai/sdxl-controlnet-union-inpainting/api';
-        // Robust default prompt for object removal and background reconstruction
-        const effectivePrompt = prompt || "Seamlessly remove the masked subject. Reconstruct the background by extending the existing street, concrete wall, and metal gate. Focus on matching textures, colors, and lighting to create an empty, unpopulated street scene. Realistic photography style.";
-
-        // Robust default negative prompt to prevent unwanted generations, especially human elements
-        const effectiveNegativePrompt = negative_prompt || "new person, face, human, human form, body, limb, head, crowd, blurry face, distinct object, text, watermark, bad quality, low resolution, ugly, distorted, noise, cropped, error, abstract, painting, drawing, cartoon, illustration, signature, frame, border";
-          console.log("Using Prompt:", effectivePrompt);
-        console.log("Using Negative Prompt:", effectiveNegativePrompt);
-        console.log("FAL_API_URL:", FAL_API_URL); // Debugging
-        console.log("image_url from client:", image_url); // Debugging
-        console.log("mask_url from client:", mask_url);   // Debugging
+        // --- THIS IS THE FIX ---
+        // Ensure the URL is absolute, including the "https://" prefix.
+        const FAL_API_URL = 'https://fal.run/fal-ai/sdxl-controlnet-union-inpainting';
+        // Note: The '/api' suffix was removed as it's not standard for this specific fal.run endpoint.
+        // --- END OF FIX ---
+        
+        const effectivePrompt = prompt || "A high-quality, realistic photograph.";
+        const effectiveNegativePrompt = negative_prompt || "new person, face, human, blurry, low quality, text, watermark, signature, distorted, error";
+        
         console.log("Using Prompt:", effectivePrompt);
         console.log("Using Negative Prompt:", effectiveNegativePrompt);
 
@@ -47,14 +44,8 @@ module.exports = async (req, res) => {
                 image_url: image_url,
                 mask_url: mask_url,
                 prompt: effectivePrompt,
-                negative_prompt: effectiveNegativePrompt, // Pass the dedicated negative prompt
-                sync_mode: true, // Recommended for Fal.ai's immediate responses for development/simpler flows
-                // Optional parameters you might want to experiment with for SDXL inpainting:
-                // strength: 0.9, // How much to change the image (0.0-1.0, 1.0 means completely redraw)
-                               // For inpainting, often managed internally, but good to know
-                // guidance_scale: 10, // How strongly the model adheres to the prompt (default often around 7-12)
-                // seed: Math.floor(Math.random() * 1000000), // For reproducibility
-                // num_inference_steps: 30, // Number of steps for generation, more steps = better quality but slower
+                negative_prompt: effectiveNegativePrompt,
+                sync_mode: true
             })
         });
 
@@ -70,8 +61,7 @@ module.exports = async (req, res) => {
         }
 
         const falResult = await falResponse.json();
-        // SDXL ControlNet Union inpainting typically returns the result directly in 'image' field
-        const tempResultUrl = falResult.image.url; 
+        const tempResultUrl = falResult.image.url;  
 
         // 3. DOWNLOAD THE PROCESSED IMAGE FROM FAL.AI
         const imageResponse = await fetch(tempResultUrl);
@@ -89,13 +79,12 @@ module.exports = async (req, res) => {
         // 5. GET THE PERMANENT, SIGNED URL AND RESPOND TO THE CLIENT
         const [permanentUrl] = await file.getSignedUrl({
             action: 'read',
-            expires: '03-09-2491' // Far-future expiration
+            expires: '03-09-2491'
         });
         
-        // Respond with a structure that mirrors the original Fal response, but with the new permanent URL
         res.status(200).json({ 
-            images: [{ url: permanentUrl }], // Wrapping in 'images' array for consistency with your client
-            timings: falResult.timings // Fal.ai usually includes timings
+            images: [{ url: permanentUrl }],
+            timings: falResult.timings
         });
 
     } catch (error) {
