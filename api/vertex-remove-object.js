@@ -15,11 +15,25 @@ console.log('Debug Probe 4: uuid loaded.');
 const { PredictionServiceClient } = require('@google-cloud/aiplatform');
 console.log('Debug Probe 5: @google-cloud/aiplatform loaded.');
 
+// ADD THIS NEW BLOCK
+// Explicitly read the credentials from the Vercel environment variable
+const credentialsJson = process.env.GOOGLE_CREDENTIALS_JSON;
+if (!credentialsJson) {
+    // This will give a much clearer error if the variable is missing
+    throw new Error("FATAL: The GOOGLE_CREDENTIALS_JSON environment variable was not found.");
+}
+
+// Parse the JSON string into an object
+const credentials = JSON.parse(credentialsJson);
+
+// Pass the credentials directly to the client
 const clientOptions = {
-    apiEndpoint: 'us-central1-aiplatform.googleapis.com',
+    apiEndpoint: 'us-central1-aiplatform.googleapis.com',
+    credentials, // <-- This is the crucial addition
 };
+
 const predictionServiceClient = new PredictionServiceClient(clientOptions);
-console.log('Debug Probe 6: Google Cloud client initialized.');
+console.log('Debug Probe 6: Google Cloud client initialized WITH EXPLICIT CREDENTIALS.');
 
 module.exports = async (req, res) => {
     console.log('Debug Probe 7: Function handler started.');
