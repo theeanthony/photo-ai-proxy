@@ -21,7 +21,7 @@ module.exports = async (req, res) => {
         }
 
         const FAL_API_URL = 'https://fal.run/fal-ai/fast-sdxl/inpainting';
-
+        
         const effectivePrompt = prompt;
         const effectiveNegativePrompt = negative_prompt;
         
@@ -45,26 +45,29 @@ module.exports = async (req, res) => {
 
         if (!falResponse.ok) {
             const errorText = await falResponse.text();
-            console.error("Error from fal.ai (sdxl-inpainting):", errorText);
-            try {
-                const errorJson = JSON.parse(errorText);
-                return res.status(falResponse.status).json({ error: 'Error from Fal.ai API', details: errorJson });
-            } catch {
-                return res.status(falResponse.status).json({ error: 'Error from Fal.ai API', details: errorText });
-            }
+            console.error("Error from fal.ai:", errorText);
+            return res.status(falResponse.status).json({ error: 'Error from Fal.ai API', details: errorText });
         }
 
         const falResult = await falResponse.json();
-        // Add this log to see the structure of the response for future debugging
-        console.log("Received Fal.ai Result:", JSON.stringify(falResult, null, 2));
+        console.log("Received Fal.ai Result Content Type:", falResult.images[0].content_type);
+        
+        const resultUrl = falResult.images[0].url;
+        let imageBuffer;
 
         // --- THIS IS THE FIX ---
-        // This model returns an 'images' array, not a single 'image' object.
-        const tempResultUrl = falResult.images[0].url;  
+        // Check if the result is a data URL and handle it directly.
+        if (resultUrl.startsWith('data:')) {
+            console.log("Handling Data URL directly.");
+            const base64Data = resultUrl.split(',')[1];
+            imageBuffer = Buffer.from(base64Data, 'base64');
+        } else {
+            // Fallback for standard HTTP URLs
+            console.log("Fetching image from standard URL.");
+            const imageResponse = await fetch(resultUrl);
+            imageBuffer = await imageResponse.buffer();
+        }
         // --- END OF FIX ---
-
-        const imageResponse = await fetch(tempResultUrl);
-        const imageBuffer = await imageResponse.buffer();
 
         const bucket = admin.storage().bucket();
         const fileName = `processed/${user_id}/${uuidv4()}.jpg`;
