@@ -65,8 +65,24 @@ module.exports = async (req, res) => {
         console.log('Debug Probe 11: Images downloaded from Firebase URLs.');
         
         const [imageBuffer, maskBuffer] = await Promise.all([ imageResponse.buffer(), maskResponse.buffer() ]);
-        console.log('Debug Probe 12: Image data converted to buffers.');
+// ADD THIS DEBUGGING BLOCK
+try {
+    console.log('Debug Probe 12.1: Uploading debug files to Firebase Storage...');
+    const bucket = admin.storage().bucket();
 
+    // Save the image buffer
+    const imageFile = bucket.file(`debug/last_image.jpg`);
+    await imageFile.save(imageBuffer, { metadata: { contentType: 'image/jpeg' } });
+
+    // Save the mask buffer
+    const maskFile = bucket.file(`debug/last_mask.png`);
+    await maskFile.save(maskBuffer, { metadata: { contentType: 'image/png' } });
+
+    console.log('Debug Probe 12.2: Debug files uploaded successfully.');
+} catch (e) {
+    console.error('Debug Probe 12.ERROR: Failed to upload debug files.', e);
+}
+// END OF DEBUGGING BLOCK
         const endpoint = `projects/${GCLOUD_PROJECT}/locations/us-central1/publishers/google/models/imagegeneration@006`;
         const instance = {
         prompt: 'A person or object was here, please fill in the background seamlessly and photorealistically.',
