@@ -39,6 +39,8 @@ module.exports = async (req, res) => {
                 mask_url: mask_url,
                 prompt: effectivePrompt,
                 negative_prompt: effectiveNegativePrompt,
+                image_width: width,   // Fal.ai often uses snake_case
+                image_height: height, // Fal.ai often uses snake_case
                 sync_mode: true
             })
         });
