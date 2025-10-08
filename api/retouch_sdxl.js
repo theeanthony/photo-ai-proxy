@@ -1,5 +1,5 @@
 // File: api/retouch_stable.js
-// Alternative inpainting endpoint that better preserves dimensions
+// Alternative inpainting endpoint using Stable Diffusion 1.5
 const fetch = require('node-fetch');
 const admin = require('../lib/firebase-admin');
 const { v4: uuidv4 } = require('uuid');
@@ -12,7 +12,7 @@ module.exports = async (req, res) => {
     try {
         const { image_url, mask_url, prompt, negative_prompt, user_id, width, height } = req.body;
         
-        if (!image_url || !mask_url || !user_id || !width || !height) {
+        if (!image_url || !mask_url || !user_id) {
             return res.status(400).json({ error: 'Missing required parameters' });
         }
         
@@ -21,14 +21,16 @@ module.exports = async (req, res) => {
             return res.status(500).json({ error: 'API key not configured' });
         }
         
-        console.log("Using Stable Diffusion inpainting with dimensions:", { width, height });
+        console.log("Using Stable Diffusion 1.5 inpainting");
+        console.log("Original dimensions:", { width, height });
         
-        // Try this model instead - it's better at preserving dimensions
-        const FAL_API_URL = 'https://fal.run/fal-ai/inpainting';
+        // Use the Stable Diffusion 1.5 inpainting model
+        const FAL_API_URL = 'https://fal.run/fal-ai/stable-diffusion-v15-inpainting';
         
         const effectivePrompt = prompt || "seamlessly fill the masked area, maintain original style and quality";
         const effectiveNegativePrompt = negative_prompt || "blurry, low quality, distorted";
         
+        // This model works better with the original image dimensions
         const falPayload = {
             image_url: image_url,
             mask_url: mask_url,
@@ -40,7 +42,7 @@ module.exports = async (req, res) => {
             sync_mode: true
         };
         
-        console.log("Calling Fal.ai inpainting model");
+        console.log("Calling Fal.ai SD1.5 inpainting model");
         
         const falResponse = await fetch(FAL_API_URL, {
             method: 'POST',
@@ -61,14 +63,19 @@ module.exports = async (req, res) => {
         }
         
         const falResult = await falResponse.json();
-        console.log("Result received, downloading image");
+        console.log("Fal.ai response structure:", Object.keys(falResult));
         
-        if (!falResult.image || !falResult.image.url) {
+        // SD1.5 returns 'image' not 'images'
+        const resultImage = falResult.image || (falResult.images && falResult.images[0]);
+        
+        if (!resultImage || !resultImage.url) {
             console.error("No image in response:", JSON.stringify(falResult));
             return res.status(500).json({ error: 'No image returned from Fal.ai' });
         }
         
-        const resultUrl = falResult.image.url;
+        const resultUrl = resultImage.url;
+        console.log("Result URL:", resultUrl);
+        
         let imageBuffer;
         
         if (resultUrl.startsWith('data:')) {
@@ -81,6 +88,8 @@ module.exports = async (req, res) => {
             }
             imageBuffer = await imageResponse.buffer();
         }
+        
+        console.log("Downloaded buffer size:", imageBuffer.length);
         
         // Upload to Firebase
         const bucket = admin.storage().bucket();
@@ -98,6 +107,8 @@ module.exports = async (req, res) => {
             action: 'read',
             expires: '03-09-2491'
         });
+        
+        console.log("Uploaded to Firebase successfully");
         
         // Return in the format expected by your Swift code
         res.status(200).json({ 
