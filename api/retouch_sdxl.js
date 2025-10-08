@@ -1,4 +1,5 @@
-// File: api/retouch_sdxl.js
+// File: api/retouch_stable.js
+// Alternative inpainting endpoint that better preserves dimensions
 const fetch = require('node-fetch');
 const admin = require('../lib/firebase-admin');
 const { v4: uuidv4 } = require('uuid');
@@ -12,7 +13,7 @@ module.exports = async (req, res) => {
         const { image_url, mask_url, prompt, negative_prompt, user_id, width, height } = req.body;
         
         if (!image_url || !mask_url || !user_id || !width || !height) {
-            return res.status(400).json({ error: 'Missing required parameters: image_url, mask_url, user_id, width, or height' });
+            return res.status(400).json({ error: 'Missing required parameters' });
         }
         
         const FAL_API_KEY = process.env.FAL_API_KEY;
@@ -20,38 +21,26 @@ module.exports = async (req, res) => {
             return res.status(500).json({ error: 'API key not configured' });
         }
         
-        console.log("Received request:");
-        console.log("- Dimensions:", { width, height });
-        console.log("- Image URL:", image_url);
-        console.log("- Mask URL:", mask_url);
+        console.log("Using Stable Diffusion inpainting with dimensions:", { width, height });
         
-        const FAL_API_URL = 'https://fal.run/fal-ai/fast-sdxl/inpainting';
+        // Try this model instead - it's better at preserving dimensions
+        const FAL_API_URL = 'https://fal.run/fal-ai/inpainting';
         
         const effectivePrompt = prompt || "seamlessly fill the masked area, maintain original style and quality";
         const effectiveNegativePrompt = negative_prompt || "blurry, low quality, distorted";
         
-        // CRITICAL: Ensure dimensions are multiples of 8 (SDXL requirement)
-        const adjustedWidth = Math.round(width / 8) * 8;
-        const adjustedHeight = Math.round(height / 8) * 8;
-        
-        console.log("Adjusted dimensions (8x multiple):", { width: adjustedWidth, height: adjustedHeight });
-        
-        // Build the payload - try different parameter formats
         const falPayload = {
             image_url: image_url,
             mask_url: mask_url,
             prompt: effectivePrompt,
             negative_prompt: effectiveNegativePrompt,
-            // Try sending as separate width/height parameters
-            image_width: adjustedWidth,
-            image_height: adjustedHeight,
             num_inference_steps: 30,
             guidance_scale: 7.5,
-            strength: 0.99, // High strength to respect the mask fully
+            strength: 0.99,
             sync_mode: true
         };
         
-        console.log("Sending to Fal.ai:", JSON.stringify(falPayload, null, 2));
+        console.log("Calling Fal.ai inpainting model");
         
         const falResponse = await fetch(FAL_API_URL, {
             method: 'POST',
@@ -72,33 +61,26 @@ module.exports = async (req, res) => {
         }
         
         const falResult = await falResponse.json();
-        console.log("Fal.ai response:", JSON.stringify(falResult, null, 2));
+        console.log("Result received, downloading image");
         
-        if (!falResult.images || !falResult.images[0]) {
-            console.error("No images in Fal.ai response");
-            return res.status(500).json({ error: 'No images returned from Fal.ai' });
+        if (!falResult.image || !falResult.image.url) {
+            console.error("No image in response:", JSON.stringify(falResult));
+            return res.status(500).json({ error: 'No image returned from Fal.ai' });
         }
         
-        const resultUrl = falResult.images[0].url;
-        console.log("Result URL:", resultUrl);
-        
+        const resultUrl = falResult.image.url;
         let imageBuffer;
         
-        // Handle data URLs or standard URLs
         if (resultUrl.startsWith('data:')) {
-            console.log("Handling Data URL directly.");
             const base64Data = resultUrl.split(',')[1];
             imageBuffer = Buffer.from(base64Data, 'base64');
         } else {
-            console.log("Fetching image from standard URL");
             const imageResponse = await fetch(resultUrl);
             if (!imageResponse.ok) {
-                throw new Error(`Failed to fetch result image: ${imageResponse.statusText}`);
+                throw new Error(`Failed to fetch result: ${imageResponse.statusText}`);
             }
             imageBuffer = await imageResponse.buffer();
         }
-        
-        console.log("Downloaded image buffer size:", imageBuffer.length, "bytes");
         
         // Upload to Firebase
         const bucket = admin.storage().bucket();
@@ -112,28 +94,22 @@ module.exports = async (req, res) => {
             }
         });
         
-        console.log("Uploaded to Firebase:", fileName);
-        
         const [permanentUrl] = await file.getSignedUrl({
             action: 'read',
             expires: '03-09-2491'
         });
         
+        // Return in the format expected by your Swift code
         res.status(200).json({ 
-            images: [{ 
-                url: permanentUrl,
-                width: falResult.images[0].width || adjustedWidth,
-                height: falResult.images[0].height || adjustedHeight
-            }],
+            images: [{ url: permanentUrl }],
             timings: falResult.timings || {}
         });
         
     } catch (error) {
-        console.error('Server error in /api/retouch_sdxl:', error);
+        console.error('Server error in /api/retouch_stable:', error);
         res.status(500).json({ 
             error: 'An unexpected error occurred.', 
-            details: error.message,
-            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+            details: error.message
         });
     }
 };
