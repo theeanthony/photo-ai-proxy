@@ -71,7 +71,7 @@ module.exports = async (req, res) => {
         const instance = {
             prompt: 'A person or object was here, please fill in the background seamlessly and photorealistically.',
             image: { bytesBase64Encoded: imageBuffer.toString('base64') },
-            mask: { image: { bytesBase64Encoded: maskBuffer.toString('base64') } },
+            mask: { bytesBase64Encoded: maskBuffer.toString('base64') },
         };
         const parameters = { sampleCount: 1, editMode: 'inpaint-removal' };
         const request = { endpoint, instances: [instance], parameters };
