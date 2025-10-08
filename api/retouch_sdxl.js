@@ -1,5 +1,5 @@
 // File: api/retouch_stable.js
-// Alternative inpainting endpoint using Stable Diffusion 1.5
+// Using Flux Pro inpainting which better preserves dimensions
 const fetch = require('node-fetch');
 const admin = require('../lib/firebase-admin');
 const { v4: uuidv4 } = require('uuid');
@@ -21,28 +21,23 @@ module.exports = async (req, res) => {
             return res.status(500).json({ error: 'API key not configured' });
         }
         
-        console.log("Using Stable Diffusion 1.5 inpainting");
+        console.log("Using Flux Pro inpainting");
         console.log("Original dimensions:", { width, height });
         
-        // Use the Stable Diffusion 1.5 inpainting model
-        const FAL_API_URL = 'https://fal.run/fal-ai/stable-diffusion-v15-inpainting';
+        // Use Flux Pro which better maintains aspect ratios
+        const FAL_API_URL = 'https://fal.run/fal-ai/flux-pro/v1.1/fill';
         
         const effectivePrompt = prompt || "seamlessly fill the masked area, maintain original style and quality";
-        const effectiveNegativePrompt = negative_prompt || "blurry, low quality, distorted";
         
-        // This model works better with the original image dimensions
         const falPayload = {
             image_url: image_url,
             mask_url: mask_url,
             prompt: effectivePrompt,
-            negative_prompt: effectiveNegativePrompt,
-            num_inference_steps: 30,
-            guidance_scale: 7.5,
-            strength: 0.99,
-            sync_mode: true
+            sync_mode: true,
+            safety_tolerance: 2
         };
         
-        console.log("Calling Fal.ai SD1.5 inpainting model");
+        console.log("Calling Fal.ai Flux Pro fill model");
         
         const falResponse = await fetch(FAL_API_URL, {
             method: 'POST',
@@ -63,9 +58,9 @@ module.exports = async (req, res) => {
         }
         
         const falResult = await falResponse.json();
-        console.log("Fal.ai response structure:", Object.keys(falResult));
+        console.log("Fal.ai response received");
         
-        // SD1.5 returns 'image' not 'images'
+        // Flux returns 'image' not 'images'
         const resultImage = falResult.image || (falResult.images && falResult.images[0]);
         
         if (!resultImage || !resultImage.url) {
@@ -74,7 +69,7 @@ module.exports = async (req, res) => {
         }
         
         const resultUrl = resultImage.url;
-        console.log("Result URL:", resultUrl);
+        console.log("Downloading result from:", resultUrl.substring(0, 50) + "...");
         
         let imageBuffer;
         
@@ -108,7 +103,7 @@ module.exports = async (req, res) => {
             expires: '03-09-2491'
         });
         
-        console.log("Uploaded to Firebase successfully");
+        console.log("Upload complete");
         
         // Return in the format expected by your Swift code
         res.status(200).json({ 
