@@ -33,6 +33,7 @@ module.exports = async (req, res) => {
                 image_url: image_url,
                 mask_url: mask_url,
                 prompt: effectivePrompt,
+                negative_prompt: "new person, face, human, human form, crowd, distinct object, text, blurry image, artifacts",
                 num_images: 1,
             })
         });
