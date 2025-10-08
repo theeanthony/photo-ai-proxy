@@ -39,7 +39,7 @@ module.exports = async (req, res) => {
         
         // --- THIS IS THE FIX ---
         // Changed "gemini-1.5-pro-latest" to the correct API model name "gemini-1.5-pro"
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
         // --- END OF FIX ---
 
         // 3. PREPARE THE MULTIMODAL PROMPT
