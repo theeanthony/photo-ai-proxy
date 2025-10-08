@@ -20,30 +20,34 @@ module.exports = async (req, res) => {
             return res.status(500).json({ error: 'API key not configured' });
         }
         
-        console.log("Received dimensions:", { width, height });
+        console.log("Received request:");
+        console.log("- Dimensions:", { width, height });
+        console.log("- Image URL:", image_url);
+        console.log("- Mask URL:", mask_url);
         
         const FAL_API_URL = 'https://fal.run/fal-ai/fast-sdxl/inpainting';
         
         const effectivePrompt = prompt || "seamlessly fill the masked area, maintain original style and quality";
         const effectiveNegativePrompt = negative_prompt || "blurry, low quality, distorted";
         
-        console.log("Using Prompt:", effectivePrompt);
-        console.log("Using Negative Prompt:", effectiveNegativePrompt);
-        console.log("Image URL:", image_url);
-        console.log("Mask URL:", mask_url);
+        // CRITICAL: Ensure dimensions are multiples of 8 (SDXL requirement)
+        const adjustedWidth = Math.round(width / 8) * 8;
+        const adjustedHeight = Math.round(height / 8) * 8;
         
-        // Call Fal.ai with explicit dimensions
+        console.log("Adjusted dimensions (8x multiple):", { width: adjustedWidth, height: adjustedHeight });
+        
+        // Build the payload - try different parameter formats
         const falPayload = {
             image_url: image_url,
             mask_url: mask_url,
             prompt: effectivePrompt,
             negative_prompt: effectiveNegativePrompt,
-            image_size: {
-                width: width,
-                height: height
-            },
-            num_inference_steps: 25,
+            // Try sending as separate width/height parameters
+            image_width: adjustedWidth,
+            image_height: adjustedHeight,
+            num_inference_steps: 30,
             guidance_scale: 7.5,
+            strength: 0.99, // High strength to respect the mask fully
             sync_mode: true
         };
         
@@ -76,6 +80,8 @@ module.exports = async (req, res) => {
         }
         
         const resultUrl = falResult.images[0].url;
+        console.log("Result URL:", resultUrl);
+        
         let imageBuffer;
         
         // Handle data URLs or standard URLs
@@ -84,7 +90,7 @@ module.exports = async (req, res) => {
             const base64Data = resultUrl.split(',')[1];
             imageBuffer = Buffer.from(base64Data, 'base64');
         } else {
-            console.log("Fetching image from standard URL:", resultUrl);
+            console.log("Fetching image from standard URL");
             const imageResponse = await fetch(resultUrl);
             if (!imageResponse.ok) {
                 throw new Error(`Failed to fetch result image: ${imageResponse.statusText}`);
@@ -92,7 +98,7 @@ module.exports = async (req, res) => {
             imageBuffer = await imageResponse.buffer();
         }
         
-        console.log("Image buffer size:", imageBuffer.length, "bytes");
+        console.log("Downloaded image buffer size:", imageBuffer.length, "bytes");
         
         // Upload to Firebase
         const bucket = admin.storage().bucket();
@@ -114,7 +120,11 @@ module.exports = async (req, res) => {
         });
         
         res.status(200).json({ 
-            images: [{ url: permanentUrl }],
+            images: [{ 
+                url: permanentUrl,
+                width: falResult.images[0].width || adjustedWidth,
+                height: falResult.images[0].height || adjustedHeight
+            }],
             timings: falResult.timings || {}
         });
         
