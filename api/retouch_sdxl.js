@@ -30,7 +30,11 @@ module.exports = async (req, res) => {
 
         // Robust default negative prompt to prevent unwanted generations, especially human elements
         const effectiveNegativePrompt = negative_prompt || "new person, face, human, human form, body, limb, head, crowd, blurry face, distinct object, text, watermark, bad quality, low resolution, ugly, distorted, noise, cropped, error, abstract, painting, drawing, cartoon, illustration, signature, frame, border";
-        
+          console.log("Using Prompt:", effectivePrompt);
+        console.log("Using Negative Prompt:", effectiveNegativePrompt);
+        console.log("FAL_API_URL:", FAL_API_URL); // Debugging
+        console.log("image_url from client:", image_url); // Debugging
+        console.log("mask_url from client:", mask_url);   // Debugging
         console.log("Using Prompt:", effectivePrompt);
         console.log("Using Negative Prompt:", effectiveNegativePrompt);
 
