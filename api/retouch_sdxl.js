@@ -10,7 +10,7 @@ module.exports = async (req, res) => {
     }
 
     try {
-        const { image_url, mask_url, prompt, negative_prompt, user_id } = req.body;
+        const { image_url, mask_url, prompt, negative_prompt, user_id, width, height } = req.body;
         if (!image_url || !mask_url || !user_id) {
             return res.status(400).json({ error: 'Missing image_url, mask_url, or user_id' });
         }
