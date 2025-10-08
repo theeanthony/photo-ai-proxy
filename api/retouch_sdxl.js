@@ -24,7 +24,9 @@ module.exports = async (req, res) => {
         // 2. CALL FAL.AI API WITH THE URLS
         // --- THIS IS THE FIX ---
         // Ensure the URL is absolute, including the "https://" prefix.
-        const FAL_API_URL = 'https://fal.run/fal-ai/sdxl-controlnet-union/inpainting';
+        // const FAL_API_URL = 'https://fal.run/fal-ai/sdxl-controlnet-union/inpainting';
+                const FAL_API_URL = 'https://fal.run/fal-ai/fast-sdxl-inpainting';
+
         // Note: The '/api' suffix was removed as it's not standard for this specific fal.run endpoint.
         // --- END OF FIX ---
         
