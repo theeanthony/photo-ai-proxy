@@ -36,7 +36,11 @@ module.exports = async (req, res) => {
 
         // 2. INITIALIZE GEMINI CLIENT
         const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro-latest" });
+        
+        // --- THIS IS THE FIX ---
+        // Changed "gemini-1.5-pro-latest" to the correct API model name "gemini-1.5-pro"
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-pro" });
+        // --- END OF FIX ---
 
         // 3. PREPARE THE MULTIMODAL PROMPT
         const prompt = "In one short, simple phrase, describe the primary object or person highlighted in the second image (the mask). Examples: 'a red car', 'a man in a blue shirt', 'the bird on the branch'. Be concise.";
@@ -47,18 +51,13 @@ module.exports = async (req, res) => {
             urlToGenerativePart(mask_url, "image/png")
         ]);
 
-        // --- THIS IS THE FIX ---
-        // The text prompt must be wrapped in an object with a 'text' key.
         const promptParts = [
-            { text: prompt }, // Correctly formatted text part
+            { text: prompt },
             ...imageParts
         ];
-        // --- END OF FIX ---
-
-
+        
         // 4. CALL THE GEMINI API
         console.log("Calling Gemini API to describe masked object...");
-        // The generateContent method can take the parts array directly.
         const result = await model.generateContent(promptParts);
         const response = result.response;
         
