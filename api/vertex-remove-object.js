@@ -76,6 +76,7 @@ module.exports = async (req, res) => {
         const parameters = { sampleCount: 1, editMode: 'inpaint-removal' };
         const request = { endpoint, instances: [instance], parameters };
         console.log('Debug Probe 13: Vertex AI request prepared. Making API call...');
+        console.log('SENDING PAYLOAD:', JSON.stringify(request, null, 2));
 
         const [vertexResponse] = await predictionServiceClient.predict(request);
         console.log('Debug Probe 14: Vertex AI call successful.');
