@@ -35,7 +35,7 @@ module.exports = async (req, res) => {
         console.log("Prompt:", effectivePrompt);
         
         // Flux Fill Pro endpoint - TRUE inpainting that respects masks
-        const FAL_API_URL = 'https://fal.run/fal-ai/flux-pro/v1.1/fill';
+        const FAL_API_URL = 'https://fal.run/fal-ai/flux-pro/v1/fill';
         
         const falPayload = {
             image_url: image_url,
