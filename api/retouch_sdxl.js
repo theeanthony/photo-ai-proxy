@@ -25,7 +25,7 @@ module.exports = async (req, res) => {
         console.log("Original dimensions:", { width, height });
         
         // Use Flux Pro which better maintains aspect ratios
-        const FAL_API_URL = 'https://fal.run/fal-ai/flux-pro/v1.1/fill';
+        const FAL_API_URL = 'https://fal.run/fal-ai/flux-pro/fill';
         
         const effectivePrompt = prompt || "seamlessly fill the masked area, maintain original style and quality";
         
