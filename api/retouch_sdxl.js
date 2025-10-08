@@ -23,7 +23,7 @@ module.exports = async (req, res) => {
 
         // 2. CALL FAL.AI API WITH THE URLS
         // --- NEW MODEL ENDPOINT ---
-        const FAL_API_URL = 'https://fal.run/fal-ai/sdxl-controlnet-union/inpainting/api';
+        const FAL_API_URL = 'fal-ai/sdxl-controlnet-union/inpainting';
 
         // Robust default prompt for object removal and background reconstruction
         const effectivePrompt = prompt || "Seamlessly remove the masked subject. Reconstruct the background by extending the existing street, concrete wall, and metal gate. Focus on matching textures, colors, and lighting to create an empty, unpopulated street scene. Realistic photography style.";
