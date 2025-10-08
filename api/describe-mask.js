@@ -41,20 +41,25 @@ module.exports = async (req, res) => {
         // 3. PREPARE THE MULTIMODAL PROMPT
         const prompt = "In one short, simple phrase, describe the primary object or person highlighted in the second image (the mask). Examples: 'a red car', 'a man in a blue shirt', 'the bird on the branch'. Be concise.";
 
-        // Fetch and convert images to the format Gemini needs
+        // Fetch and convert images
         const imageParts = await Promise.all([
-            urlToGenerativePart(image_url, "image/jpeg"), // Assuming original is jpeg
-            urlToGenerativePart(mask_url, "image/png")    // Assuming mask is png
+            urlToGenerativePart(image_url, "image/jpeg"),
+            urlToGenerativePart(mask_url, "image/png")
         ]);
 
+        // --- THIS IS THE FIX ---
+        // The text prompt must be wrapped in an object with a 'text' key.
         const promptParts = [
-            prompt,
+            { text: prompt }, // Correctly formatted text part
             ...imageParts
         ];
+        // --- END OF FIX ---
+
 
         // 4. CALL THE GEMINI API
         console.log("Calling Gemini API to describe masked object...");
-        const result = await model.generateContent({ contents: [{ role: "user", parts: promptParts }] });
+        // The generateContent method can take the parts array directly.
+        const result = await model.generateContent(promptParts);
         const response = result.response;
         
         if (!response || !response.candidates || response.candidates.length === 0) {
@@ -63,7 +68,6 @@ module.exports = async (req, res) => {
         
         // Extract and clean the text description
         let description = response.text().trim();
-        // Sometimes the model might wrap the response in quotes, so we remove them.
         description = description.replace(/^["']|["']$/g, ''); 
         
         console.log(`Gemini generated description: "${description}"`);
