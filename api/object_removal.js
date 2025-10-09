@@ -85,8 +85,8 @@ module.exports = async (req, res) => {
             
                 image_width: width, // Ensure original width
                 image_height: height, // Ensure original height
-                guidance_scale: 7.5, // Balance prompt adherence and creativity
-                strength: 0.8
+                guidance_scale: 3.5, // Balance prompt adherence and creativity
+                strength: 1.0
                 // Removed width/height as this model may not support them
             })
         });
