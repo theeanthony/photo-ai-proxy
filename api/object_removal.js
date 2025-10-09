@@ -35,7 +35,21 @@ module.exports = async (req, res) => {
         }
 
         const removalResult = await removalResponse.json();
-        const intermediateUrl = removalResult.image.url;
+        
+        // --- THIS IS THE FIX ---
+        // Add a robust check for different possible response structures.
+        let intermediateUrl;
+        if (removalResult.images && removalResult.images.length > 0 && removalResult.images[0].url) {
+            intermediateUrl = removalResult.images[0].url;
+        } else if (removalResult.image && removalResult.image.url) {
+            intermediateUrl = removalResult.image.url;
+        } else {
+            // If neither structure is found, log the response and throw an error.
+            console.error("Unexpected API response structure from Stage 1:", JSON.stringify(removalResult, null, 2));
+            throw new Error("Could not find image URL in the Stage 1 API response.");
+        }
+        // --- END OF FIX ---
+
         let intermediateImageBuffer;
 
         // Handle the output from stage 1 (could be data URL or HTTP URL)
