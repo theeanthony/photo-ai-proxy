@@ -8,7 +8,6 @@ module.exports = async (req, res) => {
     }
 
     try {
-        // This function now accepts prompts and dimensions for the second stage
         const { image_url, mask_url, user_id, prompt, negative_prompt, width, height } = req.body;
         if (!image_url || !mask_url || !user_id) {
             return res.status(400).json({ error: 'Missing image_url, mask_url, or user_id' });
@@ -33,45 +32,32 @@ module.exports = async (req, res) => {
             console.error("Error from Stage 1 (object-removal):", errorText);
             return res.status(removalResponse.status).json({ error: 'Error from Object Removal API', details: errorText });
         }
-
         const removalResult = await removalResponse.json();
-        
-        let intermediateUrl;
-        if (removalResult.images && removalResult.images.length > 0 && removalResult.images[0].url) {
-            intermediateUrl = removalResult.images[0].url;
-        } else if (removalResult.image && removalResult.image.url) {
-            intermediateUrl = removalResult.image.url;
-        } else {
-            console.error("Unexpected API response structure from Stage 1:", JSON.stringify(removalResult, null, 2));
-            throw new Error("Could not find image URL in the Stage 1 API response.");
-        }
+        const intermediateUrl = (removalResult.images && removalResult.images[0].url) || (removalResult.image && removalResult.image.url);
+        if (!intermediateUrl) throw new Error("Could not find image URL in the Stage 1 API response.");
 
-        let intermediateImageBuffer;
+        const intermediateBuffer = intermediateUrl.startsWith('data:')
+            ? Buffer.from(intermediateUrl.split(',')[1], 'base64')
+            : await (await fetch(intermediateUrl)).buffer();
 
-        if (intermediateUrl.startsWith('data:')) {
-            const base64Data = intermediateUrl.split(',')[1];
-            intermediateImageBuffer = Buffer.from(base64Data, 'base64');
-        } else {
-            const imageResponse = await fetch(intermediateUrl);
-            intermediateImageBuffer = await imageResponse.buffer();
-        }
-
-        // --- INTERMEDIATE STEP: UPLOAD BLURRED IMAGE TO GET A URL FOR STAGE 2 ---
         console.log("Uploading intermediate image for Stage 2...");
         const bucket = admin.storage().bucket();
         const tempFileName = `temp/${user_id}/${uuidv4()}.jpg`;
         const tempFile = bucket.file(tempFileName);
-        await tempFile.save(intermediateImageBuffer, { metadata: { contentType: 'image/jpeg' } });
+        await tempFile.save(intermediateBuffer, { metadata: { contentType: 'image/jpeg' } });
         const [tempPermanentUrl] = await tempFile.getSignedUrl({ action: 'read', expires: '03-09-2491' });
 
         // --- STAGE 2: HIGH-QUALITY BACKGROUND RECONSTRUCTION ---
-        console.log("Stage 2: Calling Generative Inpainting API...");
-        // --- THIS IS THE FIX ---
-        // Switched to the flux-lora/inpainting model as requested.
+        console.log("Stage 2: Calling Generative Inpainting API with refined parameters...");
         const inpaintingApiUrl = 'https://fal.run/fal-ai/flux-lora/inpainting';
+        
+        // --- THIS IS THE FIX ---
+        // Tweak the prompt to focus on an "unpopulated" scene
+        const effectivePrompt = prompt || "A high-quality, sharp, photorealistic image. Reconstruct the background to create an empty, unpopulated scene based on the surrounding textures.";
+        
+        // A much more aggressive negative prompt to fight contextual bias
+        const effectiveNegativePrompt = negative_prompt || "person, people, human, face, body, figure, form, crowd, man, woman, child, head, arm, leg, hair, eyes, skin, portrait, blurry face, artifact, text, watermark";
         // --- END OF FIX ---
-        const effectivePrompt = prompt || "A high-quality, realistic photograph, seamless background.";
-        const effectiveNegativePrompt = negative_prompt || "blurry, low quality, artifact, text, watermark";
         
         const inpaintingResponse = await fetch(inpaintingApiUrl, {
             method: 'POST',
@@ -82,12 +68,10 @@ module.exports = async (req, res) => {
                 prompt: effectivePrompt,
                 negative_prompt: effectiveNegativePrompt,
                 sync_mode: true,
-            
-                image_width: width, // Ensure original width
-                image_height: height, // Ensure original height
-                guidance_scale: 3.5, // Balance prompt adherence and creativity
-                strength: 1.0
-                // Removed width/height as this model may not support them
+                image_width: width,
+                image_height: height,
+                strength: 1.0,
+                guidance_scale: 3.5
             })
         });
 
@@ -101,15 +85,9 @@ module.exports = async (req, res) => {
 
         const inpaintingResult = await inpaintingResponse.json();
         const finalUrl = inpaintingResult.images[0].url;
-        let finalImageBuffer;
-
-        if (finalUrl.startsWith('data:')) {
-            const base64Data = finalUrl.split(',')[1];
-            finalImageBuffer = Buffer.from(base64Data, 'base64');
-        } else {
-            const finalImageResponse = await fetch(finalUrl);
-            finalImageBuffer = await finalImageResponse.buffer();
-        }
+        const finalImageBuffer = finalUrl.startsWith('data:')
+            ? Buffer.from(finalUrl.split(',')[1], 'base64')
+            : await (await fetch(finalUrl)).buffer();
 
         // --- FINAL UPLOAD AND RESPONSE ---
         const finalFileName = `processed/${user_id}/${uuidv4()}.jpg`;
