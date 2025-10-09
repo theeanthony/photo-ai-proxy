@@ -66,7 +66,10 @@ module.exports = async (req, res) => {
 
         // --- STAGE 2: HIGH-QUALITY BACKGROUND RECONSTRUCTION ---
         console.log("Stage 2: Calling Generative Inpainting API...");
-        const inpaintingApiUrl = 'https://fal.run/fal-ai/fast-sdxl/inpainting';
+        // --- THIS IS THE FIX ---
+        // Switched to the flux-lora/inpainting model as requested.
+        const inpaintingApiUrl = 'https://fal.run/fal-ai/flux-lora/inpainting';
+        // --- END OF FIX ---
         const effectivePrompt = prompt || "A high-quality, realistic photograph, seamless background.";
         const effectiveNegativePrompt = negative_prompt || "blurry, low quality, artifact, text, watermark";
         
@@ -79,11 +82,12 @@ module.exports = async (req, res) => {
                 prompt: effectivePrompt,
                 negative_prompt: effectiveNegativePrompt,
                 sync_mode: true,
-                // --- THIS IS THE FIX ---
-                // Pass the original dimensions to the inpainting model
-                image_width: width,
-                image_height: height
-                // --- END OF FIX ---
+            
+                image_width: width, // Ensure original width
+                image_height: height, // Ensure original height
+                guidance_scale: 7.5, // Balance prompt adherence and creativity
+                strength: 0.8
+                // Removed width/height as this model may not support them
             })
         });
 
