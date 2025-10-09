@@ -8,8 +8,8 @@ module.exports = async (req, res) => {
     }
 
     try {
-        // This function now accepts prompts for the second stage
-        const { image_url, mask_url, user_id, prompt, negative_prompt } = req.body;
+        // This function now accepts prompts and dimensions for the second stage
+        const { image_url, mask_url, user_id, prompt, negative_prompt, width, height } = req.body;
         if (!image_url || !mask_url || !user_id) {
             return res.status(400).json({ error: 'Missing image_url, mask_url, or user_id' });
         }
@@ -36,23 +36,18 @@ module.exports = async (req, res) => {
 
         const removalResult = await removalResponse.json();
         
-        // --- THIS IS THE FIX ---
-        // Add a robust check for different possible response structures.
         let intermediateUrl;
         if (removalResult.images && removalResult.images.length > 0 && removalResult.images[0].url) {
             intermediateUrl = removalResult.images[0].url;
         } else if (removalResult.image && removalResult.image.url) {
             intermediateUrl = removalResult.image.url;
         } else {
-            // If neither structure is found, log the response and throw an error.
             console.error("Unexpected API response structure from Stage 1:", JSON.stringify(removalResult, null, 2));
             throw new Error("Could not find image URL in the Stage 1 API response.");
         }
-        // --- END OF FIX ---
 
         let intermediateImageBuffer;
 
-        // Handle the output from stage 1 (could be data URL or HTTP URL)
         if (intermediateUrl.startsWith('data:')) {
             const base64Data = intermediateUrl.split(',')[1];
             intermediateImageBuffer = Buffer.from(base64Data, 'base64');
@@ -79,15 +74,19 @@ module.exports = async (req, res) => {
             method: 'POST',
             headers: { 'Authorization': `Key ${FAL_API_KEY}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                image_url: tempPermanentUrl, // Use the intermediate image as the new input
-                mask_url: mask_url,         // Use the original mask
+                image_url: tempPermanentUrl,
+                mask_url: mask_url,
                 prompt: effectivePrompt,
                 negative_prompt: effectiveNegativePrompt,
-                sync_mode: true
+                sync_mode: true,
+                // --- THIS IS THE FIX ---
+                // Pass the original dimensions to the inpainting model
+                image_width: width,
+                image_height: height
+                // --- END OF FIX ---
             })
         });
 
-        // (Optional but good practice) Delete the temporary file after the call
         await tempFile.delete();
 
         if (!inpaintingResponse.ok) {
@@ -100,7 +99,6 @@ module.exports = async (req, res) => {
         const finalUrl = inpaintingResult.images[0].url;
         let finalImageBuffer;
 
-        // Handle the final output
         if (finalUrl.startsWith('data:')) {
             const base64Data = finalUrl.split(',')[1];
             finalImageBuffer = Buffer.from(base64Data, 'base64');
@@ -115,7 +113,6 @@ module.exports = async (req, res) => {
         await finalFile.save(finalImageBuffer, { metadata: { contentType: 'image/jpeg' } });
         const [permanentUrl] = await finalFile.getSignedUrl({ action: 'read', expires: '03-09-2491' });
         
-        // Use timings from the second, longer process for user feedback
         res.status(200).json({ 
             images: [{ url: permanentUrl }],
             timings: inpaintingResult.timings 
@@ -126,5 +123,4 @@ module.exports = async (req, res) => {
         res.status(500).json({ error: 'An unexpected error occurred.', details: error.message });
     }
 };
-
 
