@@ -18,11 +18,11 @@ module.exports = async (req, res) => {
             return res.status(500).json({ error: 'API key not configured' });
         }
 
-        // SINGLE-STAGE: LaMa Inpainting - Maintains Resolution
-        console.log("Calling LaMa Inpainting API for object removal...");
-        const lamaApiUrl = 'https://fal.run/fal-ai/lama-inpainting';
+        // SINGLE-STAGE: Bria Eraser - High-quality commercial-grade removal
+        console.log("Calling Bria Eraser API for object removal...");
+        const briaApiUrl = 'https://fal.run/fal-ai/bria/eraser';
         
-        const lamaResponse = await fetch(lamaApiUrl, {
+        const briaResponse = await fetch(briaApiUrl, {
             method: 'POST',
             headers: { 
                 'Authorization': `Key ${FAL_API_KEY}`, 
@@ -35,17 +35,24 @@ module.exports = async (req, res) => {
             })
         });
 
-        if (!lamaResponse.ok) {
-            const errorText = await lamaResponse.text();
-            console.error("Error from LaMa Inpainting:", errorText);
-            return res.status(lamaResponse.status).json({ 
-                error: 'Error from LaMa Inpainting API', 
+        if (!briaResponse.ok) {
+            const errorText = await briaResponse.text();
+            console.error("Error from Bria Eraser:", errorText);
+            return res.status(briaResponse.status).json({ 
+                error: 'Error from Bria Eraser API', 
                 details: errorText 
             });
         }
 
-        const lamaResult = await lamaResponse.json();
-        const resultUrl = lamaResult.image.url;
+        const briaResult = await briaResponse.json();
+        
+        // Handle different response formats
+        const resultUrl = briaResult.image?.url || 
+                         (briaResult.images && briaResult.images[0]?.url);
+        
+        if (!resultUrl) {
+            throw new Error("Could not find image URL in the API response.");
+        }
         
         // Download the result
         const resultBuffer = resultUrl.startsWith('data:')
@@ -68,11 +75,11 @@ module.exports = async (req, res) => {
         
         res.status(200).json({ 
             images: [{ url: permanentUrl }],
-            timings: lamaResult.timings 
+            timings: briaResult.timings 
         });
 
     } catch (error) {
-        console.error('Server error in /api/lama_removal:', error);
+        console.error('Server error in /api/bria_removal:', error);
         res.status(500).json({ 
             error: 'An unexpected error occurred.', 
             details: error.message 
