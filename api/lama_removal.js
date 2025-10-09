@@ -18,11 +18,11 @@ module.exports = async (req, res) => {
             return res.status(500).json({ error: 'API key not configured' });
         }
 
-        // SINGLE-STAGE: Finegrain Eraser - Maintains Resolution & Removes Shadows/Reflections
-        console.log("Calling Finegrain Eraser API for object removal...");
-        const finegrainApiUrl = 'https://fal.run/fal-ai/finegrain-eraser/mask';
+        // SINGLE-STAGE: Bria Eraser - High-quality commercial-grade removal
+        console.log("Calling Bria Eraser API for object removal...");
+        const briaApiUrl = 'https://fal.run/fal-ai/bria/eraser';
         
-        const finegrainResponse = await fetch(finegrainApiUrl, {
+        const briaResponse = await fetch(briaApiUrl, {
             method: 'POST',
             headers: { 
                 'Authorization': `Key ${FAL_API_KEY}`, 
@@ -35,20 +35,20 @@ module.exports = async (req, res) => {
             })
         });
 
-        if (!finegrainResponse.ok) {
-            const errorText = await finegrainResponse.text();
-            console.error("Error from Finegrain Eraser:", errorText);
-            return res.status(finegrainResponse.status).json({ 
-                error: 'Error from Finegrain Eraser API', 
+        if (!briaResponse.ok) {
+            const errorText = await briaResponse.text();
+            console.error("Error from Bria Eraser:", errorText);
+            return res.status(briaResponse.status).json({ 
+                error: 'Error from Bria Eraser API', 
                 details: errorText 
             });
         }
 
-        const finegrainResult = await finegrainResponse.json();
+        const briaResult = await briaResponse.json();
         
         // Handle different response formats
-        const resultUrl = finegrainResult.image?.url || 
-                         (finegrainResult.images && finegrainResult.images[0]?.url);
+        const resultUrl = briaResult.image?.url || 
+                         (briaResult.images && briaResult.images[0]?.url);
         
         if (!resultUrl) {
             throw new Error("Could not find image URL in the API response.");
@@ -75,11 +75,11 @@ module.exports = async (req, res) => {
         
         res.status(200).json({ 
             images: [{ url: permanentUrl }],
-            timings: finegrainResult.timings 
+            timings: briaResult.timings 
         });
 
     } catch (error) {
-        console.error('Server error in /api/finegrain_removal:', error);
+        console.error('Server error in /api/bria_removal:', error);
         res.status(500).json({ 
             error: 'An unexpected error occurred.', 
             details: error.message 
