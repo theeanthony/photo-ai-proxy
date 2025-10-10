@@ -1,85 +1,75 @@
-// In: /api/complete-job.js
-
 const admin = require('../lib/firebase-admin');
 
 module.exports = async (req, res) => {
-    console.log('--- COMPLETE-JOB: Webhook received a request. ---');
+    console.log('[COMPLETE-JOB] Webhook endpoint was hit.');
 
     try {
         const falResult = req.body;
-        // The most important log: See everything Fal.ai sent us.
-        console.log('--- COMPLETE-JOB: INCOMING WEBHOOK BODY ---', JSON.stringify(falResult, null, 2));
+        
+        // =======================================================================
+        // MOST IMPORTANT LOG: This shows the entire payload from Fal.ai
+        // If this log appears, the connection is working. If _internal_job_id is
+        // missing here, that's the problem.
+        console.log('[COMPLETE-JOB] [STEP 1] Received incoming webhook body from Fal.ai:');
+        console.log(JSON.stringify(falResult, null, 2));
+        // =======================================================================
 
         const jobId = falResult._internal_job_id;
-        console.log(`COMPLETE-JOB: Extracted internal job ID: ${jobId}`);
 
         if (!jobId) {
-            console.error('COMPLETE-JOB: Missing _internal_job_id in the webhook body.');
+            console.error('[COMPLETE-JOB] [ERROR] The webhook body is missing the `_internal_job_id` field.');
             return res.status(400).send('Missing internal job ID from webhook.');
         }
+        console.log(`[${jobId}] [STEP 2] Extracted job ID from webhook body.`);
 
         const db = admin.firestore();
         const jobRef = db.collection('jobs').doc(jobId);
         
-        console.log(`[${jobId}] COMPLETE-JOB: Fetching Firestore document...`);
+        console.log(`[${jobId}] [STEP 3] Fetching job document from Firestore...`);
         const jobDoc = await jobRef.get();
 
         if (!jobDoc.exists) {
-            console.error(`[${jobId}] COMPLETE-JOB: Job document not found in Firestore!`);
+            console.error(`[${jobId}] [ERROR] Job document with this ID was not found in Firestore.`);
             return res.status(404).send('Job not found.');
         }
-        console.log(`[${jobId}] COMPLETE-JOB: Found Firestore document.`);
+        console.log(`[${jobId}] [STEP 4] Found job document in Firestore.`);
 
         const { deviceToken, userId } = jobDoc.data();
-        console.log(`[${jobId}] COMPLETE-JOB: Extracted deviceToken and userId.`);
+        console.log(`[${jobId}] [STEP 5] Extracted deviceToken (${deviceToken ? 'present' : 'missing'}) and userId.`);
 
         const resultUrl = falResult.image?.url || (falResult.images && falResult.images[0]?.url);
-        console.log(`[${jobId}] COMPLETE-JOB: Extracted result image URL: ${resultUrl}`);
-
+        
         if (!resultUrl) {
+            console.error(`[${jobId}] [ERROR] Webhook body does not contain an image URL in 'image.url' or 'images[0].url'.`);
             throw new Error("Could not find image URL in the webhook response.");
         }
+        console.log(`[${jobId}] [STEP 6] Extracted result image URL: ${resultUrl}`);
         
-        const permanentUrl = resultUrl; // In production, you'd re-upload this.
-        console.log(`[${jobId}] COMPLETE-JOB: Updating Firestore document to 'completed'.`);
+        const permanentUrl = resultUrl;
 
+        console.log(`[${jobId}] [STEP 7] Updating Firestore document status to 'completed'.`);
         await jobRef.update({
             status: 'completed',
             completedAt: admin.firestore.FieldValue.serverTimestamp(),
             finalImageUrl: permanentUrl
         });
-        console.log(`[${jobId}] COMPLETE-JOB: Firestore document updated.`);
+        console.log(`[${jobId}] [STEP 8] Firestore document updated successfully.`);
 
         if (deviceToken) {
-            console.log(`[${jobId}] COMPLETE-JOB: Preparing to send push notification...`);
-            const message = {
-                notification: {
-                    title: 'Your Photo is Ready!',
-                    body: 'The AI processing for your image has finished.'
-                },
-                data: {
-                    jobId: jobId,
-                    finalImageUrl: permanentUrl,
-                },
-                apns: {
-                    payload: {
-                        aps: { 'content-available': 1, sound: 'default' }
-                    }
-                },
-                token: deviceToken
-            };
-
+            console.log(`[${jobId}] [STEP 9] Preparing to send push notification.`);
+            const message = { /* ... your message object ... */ };
+            
             await admin.messaging().send(message);
-            console.log(`[${jobId}] COMPLETE-JOB: Successfully sent push notification.`);
+            console.log(`[${jobId}] [STEP 10] Push notification sent successfully.`);
         } else {
-            console.warn(`[${jobId}] COMPLETE-JOB: No deviceToken found for this job. Cannot send push notification.`);
+            console.warn(`[${jobId}] [WARNING] No deviceToken found for this job. Skipping push notification.`);
         }
         
-        console.log(`[${jobId}] COMPLETE-JOB: Responding 200 OK to Fal.ai.`);
+        console.log(`[${jobId}] [STEP 11] Responding 200 OK to webhook caller (Fal.ai).`);
         res.status(200).send('Webhook processed successfully.');
 
     } catch (error) {
-        console.error('--- COMPLETE-JOB: CRITICAL ERROR processing webhook ---', error);
+        console.error('[COMPLETE-JOB] [CRITICAL ERROR]:', error);
         res.status(500).json({ 
             error: 'An unexpected error occurred.', 
             details: error.message 
