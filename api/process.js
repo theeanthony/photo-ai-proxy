@@ -93,7 +93,7 @@ module.exports = async (req, res) => {
 
             case 'upscale':
                 console.log("we made it here to upsacle in api")
-                falResult = await fetchFromFal('https://fal.run/fal-ai/topaz/upscale/image', {
+                falResult = await fetchFromFal('https://fal.run/fal-ai/drct-super-resolution', {
                     image_url: apiParams.image_url,
                     scale_factor: apiParams.upscale_factor || 2.0,
                     face_enhancement: true
