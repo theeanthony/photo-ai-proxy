@@ -139,6 +139,9 @@ module.exports = async (req, res) => {
                 const errorText = await falResponse.text();
                 throw new Error(`Fal.ai rejected the job request with status ${falResponse.status}: ${errorText}`);
             }
+
+             const initialFalResult = await falResponse.json();
+            console.log(`[${jobId}] Fal.ai ACCEPTED the webhook job. Initial Response Body:`, initialFalResult);
             
             console.log(`[${jobId}] START-JOB: Fal.ai ACCEPTED the webhook job.`);
             res.status(202).json({ message: 'Job started successfully', jobId });
