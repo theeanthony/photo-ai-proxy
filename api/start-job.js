@@ -37,7 +37,7 @@ module.exports = async (req, res) => {
                 requestBody = { image_url: apiParams.image_url, mask_url: apiParams.mask_url };
                 break;
             case 'colorize':
-                 falApiUrl = 'https://fal.run/fal-ai/photocolor';
+                 falApiUrl = 'https://fal.run/fal-ai/nano-banana/edit';
                  requestBody = { image_url: apiParams.image_url };
                  break;
             case 'generic_restore':
