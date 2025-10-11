@@ -77,7 +77,7 @@ module.exports = async (req, res) => {
             }
 
             case 'smart_retouch':
-                falResult = await fetchFromFal('https://fal.run/fal-ai/lama-cleaner', { 
+                falResult = await fetchFromFal('https://fal.run/fal-ai/bria/eraser', { 
                     image_url: apiParams.image_url,
                     mask_url: apiParams.mask_url
                 });
