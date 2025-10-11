@@ -76,12 +76,23 @@ module.exports = async (req, res) => {
                 break;
             }
 
-            case 'smart_retouch':
-                falResult = await fetchFromFal('https://fal.run/fal-ai/bria/eraser', { 
-                    image_url: apiParams.image_url,
-                    mask_url: apiParams.mask_url
-                });
-                break;
+          case 'smart_retouch': {
+    const briaResult = await fetchFromFal('https://fal.run/fal-ai/bria/eraser', { 
+        image_url: apiParams.image_url,
+        mask_url: apiParams.mask_url
+    });
+
+    if (briaResult.image) {
+        // This is the "translation" step!
+        falResult = { 
+            images: [briaResult.image], 
+            timings: briaResult.timings 
+        };
+    } else {
+        falResult = briaResult;
+    }
+    break;
+}
 
             case 'ai_resize':
                 falResult = await fetchFromFal('https://fal.run/fal-ai/flux-pro/v1/fill', { 
