@@ -98,7 +98,9 @@ module.exports = async (req, res) => {
                 falResult = await fetchFromFal('https://fal.run/fal-ai/flux-pro/v1/fill', { 
                     image_url: apiParams.image_url,
                     mask_url: apiParams.mask_url,
-                    prompt: "Extend the image naturally, adding photorealistic details that maintain the precise style, lighting, and perspective of the original scene."
+                    prompt: "Extend the image naturally, adding photorealistic details that maintain the precise style, lighting, and perspective of the original scene.",
+                    negative_prompt: "repetition, repeating patterns, collage, stacked images, duplicated objects, duplicated subjects, frames, borders, incoherent, disjointed, multiple people, tiling, artifacts"
+
                 });
                 break;
 
