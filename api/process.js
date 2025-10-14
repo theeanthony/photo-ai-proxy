@@ -98,7 +98,7 @@ module.exports = async (req, res) => {
                 falResult = await fetchFromFal('https://fal.run/fal-ai/flux-pro/v1/fill', { 
                     image_url: apiParams.image_url,
                     mask_url: apiParams.mask_url,
-                    prompt: "Seamlessly expand the image with photorealistic details that perfectly blend with the existing style, lighting, and perspective of the original photo"
+                    prompt: "Outpaint the image by generating new, photorealistic content that is a harmonious and continuous extension of the original photo's style, lighting, and perspective"
                 });
                 break;
 
