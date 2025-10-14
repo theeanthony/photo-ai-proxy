@@ -95,7 +95,7 @@ module.exports = async (req, res) => {
 }
 
             case 'ai_resize':
-                falResult = await fetchFromFal('https://fal.run/fal-ai/flux-pro/v1/fill', { 
+                falResult = await fetchFromFal('https://fal.run/fal-ai/hyper-sdxl/inpainting', { 
                     image_url: apiParams.image_url,
                     mask_url: apiParams.mask_url,
                     prompt: "Extend the image naturally, adding photorealistic details that maintain the precise style, lighting, and perspective of the original scene.",
