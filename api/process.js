@@ -94,15 +94,39 @@ module.exports = async (req, res) => {
     break;
 }
 
-            case 'ai_resize':
-                falResult = await fetchFromFal('https://fal.run/fal-ai/flux-pro/v1/fill', { 
-                    image_url: apiParams.image_url,
-                    mask_url: apiParams.mask_url,
-                    prompt: "A high-quality, realistic photograph. Creatively fill in the masked areas to naturally extend the scene. Match the lighting, style, and texture of the original photo. Extend the sky upwards and the ground downwards.",
-                    negative_prompt: "repetition, repeating patterns, collage, stacked images, duplicated objects, duplicated subjects, frames, borders, incoherent, disjointed, multiple people, tiling, artifacts"
-
-                });
-                break;
+case 'ai_resize': {
+    const { image_url, mask_url, expansion_direction } = apiParams;
+    
+    // Build a smarter prompt based on expansion direction
+    let contextualPrompt = "A high-quality, realistic photograph. ";
+    
+    if (expansion_direction === 'vertical') {
+        contextualPrompt += "Naturally extend the sky upward and the ground/floor downward. " +
+            "Maintain the horizon line and perspective. " +
+            "Continue existing patterns seamlessly (clouds, terrain, flooring). ";
+    } else if (expansion_direction === 'horizontal') {
+        contextualPrompt += "Naturally extend the scene to the left and right sides. " +
+            "Maintain perspective and scale of existing elements. " +
+            "Continue architectural or environmental patterns seamlessly. ";
+    } else {
+        contextualPrompt += "Extend the scene in all directions naturally. " +
+            "Maintain perspective, lighting, and existing scene elements. ";
+    }
+    
+    contextualPrompt += "Match the exact lighting, color palette, and style of the original photo. " +
+        "Fill masked areas with contextually appropriate content.";
+    
+    falResult = await fetchFromFal('https://fal.run/fal-ai/flux-pro/v1/fill', { 
+        image_url: image_url,
+        mask_url: mask_url,
+        prompt: contextualPrompt,
+        negative_prompt: "repetition, repeating patterns, collage, stacked images, " +
+            "duplicated objects, duplicated subjects, frames, borders, incoherent, " +
+            "disjointed, multiple people, tiling, artifacts, mirroring, " +
+            "unrelated scenery, random objects, unnatural transitions"
+    });
+    break;
+}
 
             case 'upscale':
                 console.log("we made it here to upsacle in api")
