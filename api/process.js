@@ -143,7 +143,7 @@ case 'ai_resize': {
             
             case 'trend': {
                 const { image_urls, prompt } = apiParams;
-                 falResult = await fetchFromFal('https://fal.run/fal-ai/stable-diffusion-xl-lightning', { 
+                 falResult = await fetchFromFal('https://fal.run/fal-ai/nano-banana/edit', { 
                     image_urls: image_urls, 
                     prompt: prompt
                 });
