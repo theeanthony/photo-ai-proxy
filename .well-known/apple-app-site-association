@@ -3,7 +3,7 @@
     "apps": [],
     "details": [
       {
-        "appID": "S7B7P49UC4.com.whocares.Trends",
+        "appID": "S7B7P49UC4.whocares.Trends",
         "paths": [ "/trend/*" ]
       }
     ]
