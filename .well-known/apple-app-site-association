@@ -1,13 +1,11 @@
 {
-  "headers": [
-    {
-      "source": "/.well-known/apple-app-site-association",
-      "headers": [
-        {
-          "key": "Content-Type",
-          "value": "application/json"
-        }
-      ]
-    }
-  ]
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "K8483B4642.com.whocares.Trends",
+        "paths": [ "/trend/*" ]
+      }
+    ]
+  }
 }
