@@ -76,7 +76,7 @@ module.exports = async (req, res) => {
                 break;
             }
 case 'video': {
-    // 1. Get the parameters, including new optional ones
+    // 1. Get the parameters
     const { 
         image_urls, 
         prompt,
@@ -84,36 +84,40 @@ case 'video': {
         resolution,
         aspect_ratio,
         fps,
-        generate_audio // This can be true, false, or undefined
+        generate_audio 
     } = apiParams;
+
+    // ⭐️ --- FIX: Parse inputs to numbers and use number defaults --- ⭐️
+    const numericDuration = parseInt(duration || 6, 10);
+    const numericFPS = parseInt(fps || 25, 10);
     
-    // 2. Call the model using all parameters
+    // 2. Call the model with the correct data types
     const videoFileObject = await fetchFromFal(
         'https://fal.run/fal-ai/ltxv-2/image-to-video/fast', 
         { 
-            image_url: image_urls[0], // ltxv-2 takes one image
+            image_url: image_urls[0],
             prompt: prompt,
             
-            // Use default values if not provided
-            duration: duration || "6",
+            // ✅ Use the new numeric values
+            duration: numericDuration,
+            fps: numericFPS,
+            
+            // These are correctly strings
             resolution: resolution || "1080p",
             aspect_ratio: aspect_ratio || "16:9",
-            fps: fps || "25",
             
-            // Use nullish coalescing (??) for the boolean default
-            // This ensures that if `generate_audio: false` is sent, it's respected
             generate_audio: generate_audio ?? true 
         }
     );
 
-    // 3. Format the result to match your FalAPIResponse Swift model
+    // 3. Format the result
     falResult = {
-        images: [videoFileObject], // Wrap the single file object in an array
-        timings: videoFileObject.timings || null, // Pass timings if they exist
+        images: [videoFileObject],
+        timings: videoFileObject.timings || null,
         description: "Video generated"
     };
 
-    break; // 4. Don't forget to break!
+    break;
 }
 
           case 'smart_retouch': {
