@@ -75,6 +75,30 @@ module.exports = async (req, res) => {
                 });
                 break;
             }
+case 'video': {
+                // 1. Get the parameters
+                const { image_urls, prompt } = apiParams;
+                
+                // 2. Call the model using your established fetchFromFal helper
+                // The model returns a single video file object directly.
+                const videoFileObject = await fetchFromFal(
+                    'https://fal.run/fal-ai/ltxv-2/image-to-video/fast', 
+                    { 
+                        image_url: image_urls[0], // ltxv-2 takes one image
+                        prompt: prompt
+                    }
+                );
+
+                // 3. Format the result to match your FalAPIResponse Swift model
+                // Your app expects an object: { images: [...] }
+                falResult = {
+                    images: [videoFileObject], // Wrap the single file object in an array
+                    timings: videoFileObject.timings || null, // Pass timings if they exist
+                    description: "Video generated"
+                };
+
+                break; // 4. Don't forget to break!
+            }
 
           case 'smart_retouch': {
     const briaResult = await fetchFromFal('https://fal.run/fal-ai/bria/eraser', { 
