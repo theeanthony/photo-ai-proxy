@@ -111,9 +111,9 @@ case 'video': {
     );
 
     // 3. Format the result
-    falResult = {
-        images: [videoFileObject],
-        timings: videoFileObject.timings || null,
+falResult = {
+        images: [falResponse.video], 
+        timings: falResponse.timings || null, // Timings are on the root response
         description: "Video generated"
     };
 
