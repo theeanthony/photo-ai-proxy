@@ -92,7 +92,8 @@ case 'video': {
     const numericFPS = parseInt(fps || 25, 10);
     
     // 2. Call the model with the correct data types
-    const videoFileObject = await fetchFromFal(
+    // ⭐️ --- FIX: Rename this variable --- ⭐️
+    const falResponse = await fetchFromFal(
         'https://fal.run/fal-ai/ltxv-2/image-to-video/fast', 
         { 
             image_url: image_urls[0],
@@ -110,8 +111,8 @@ case 'video': {
         }
     );
 
-    // 3. Format the result
-falResult = {
+    // 3. Format the result - This code is now correct!
+    falResult = {
         images: [falResponse.video], 
         timings: falResponse.timings || null, // Timings are on the root response
         description: "Video generated"
