@@ -107,7 +107,7 @@ case 'video': {
             resolution: resolution || "1080p",
             aspect_ratio: aspect_ratio || "16:9",
             
-            generate_audio: generate_audio ?? true 
+            generate_audio: generate_audio ?? false 
         }
     );
 
