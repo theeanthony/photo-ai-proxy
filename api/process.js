@@ -75,6 +75,19 @@ module.exports = async (req, res) => {
                 });
                 break;
             }
+                case 'studio_glow':
+            case 'smart_skin':
+            case 'backlight_savior':
+            case 'golden_hour':
+            case 'vibrant_nature':
+            case 'portrait_pop':
+            case 'analog_film':
+            case 'moody_cinema':
+            case 'foodie_fix':
+            case 'minimalist_white':
+            case 'sharpen_details':
+            case 'neon_noir':
+            case 'subject_light':
    case 'textual_edit': {
                 // Extract parameters sent from the app
                 const { image_url, mask_url, prompt } = apiParams; // mask_url will be undefined if not sent
@@ -207,7 +220,7 @@ case 'ai_resize': {
                     falResult = { images: [falResult.image], timings: falResult.timings };
                 }
                 break;
-            
+            case 'ai_color_grade':
             case 'trend': {
                 const { image_urls, prompt } = apiParams;
                  falResult = await fetchFromFal('https://fal.run/fal-ai/nano-banana/edit', { 
