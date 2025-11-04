@@ -75,16 +75,26 @@ module.exports = async (req, res) => {
                 });
                 break;
             }
-                case 'textual_edit': {
+   case 'textual_edit': {
                 // Extract parameters sent from the app
-                const { image_url, mask_url, prompt } = apiParams;
+                const { image_url, mask_url, prompt } = apiParams; // mask_url will be undefined if not sent
+                
+                // Build the request body for Fal.ai
+                const falBody = {
+                    image_urls: [image_url], // nano-banana expects an array
+                    prompt: prompt
+                };
 
-                // Call nano-banana with the image, mask, and prompt
-                falResult = await fetchFromFal('https://fal.run/fal-ai/nano-banana/edit', { 
-                    image_urls: [image_url], // nano-banana expects an array
-                    mask_url: mask_url,
-                    prompt: prompt
-               });
+                // Conditionally add the mask_url if it was provided
+                if (mask_url) {
+                    console.log("[PROCESS-IMAGE] 'textual_edit' includes a mask.");
+                    falBody.mask_url = mask_url;
+                } else {
+                    console.log("[PROCESS-IMAGE] 'textual_edit' does not include a mask.");
+                }
+                
+                // Call nano-banana with the conditional body
+                falResult = await fetchFromFal('https://fal.run/fal-ai/nano-banana/edit', falBody);
                 break;
             }
 case 'video': {
