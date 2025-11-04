@@ -111,50 +111,50 @@ module.exports = async (req, res) => {
                 break;
             }
 case 'video': {
-    // 1. Get the parameters
-    const { 
-        image_urls, 
-        prompt,
-        duration,
-        resolution,
-        aspect_ratio,
-        fps,
-        generate_audio 
-    } = apiParams;
+                // 1. Get the parameters
+                const { 
+                    image_urls, 
+                    prompt,
+                    resolution,
+                    aspect_ratio, // Client should now send "auto", "1:1", "9:16", etc.
+                    generate_audio 
+                } = apiParams;
 
-    // ⭐️ --- FIX: Parse inputs to numbers and use number defaults --- ⭐️
-    const numericDuration = parseInt(duration || 6, 10);
-    const numericFPS = parseInt(fps || 25, 10);
-    
-    // 2. Call the model with the correct data types
-    // ⭐️ --- FIX: Rename this variable --- ⭐️
-    const falResponse = await fetchFromFal(
-        'https://fal.run/fal-ai/ltxv-2/image-to-video/fast', 
-        { 
-            image_url: image_urls[0],
-            prompt: prompt,
-            
-            // ✅ Use the new numeric values
-            duration: numericDuration,
-            fps: numericFPS,
-            
-            // These are correctly strings
-            resolution: resolution || "1080p",
-            aspect_ratio: aspect_ratio || "16:9",
-            
-            generate_audio: generate_audio ?? false 
-        }
-    );
+                // 2. Call the VEO model
+                // ⭐️ --- CHANGED: Renamed variable for clarity --- ⭐️
+                const falResponse = await fetchFromFal(
+                    // ⭐️ --- CHANGED: Updated to the Veo3 endpoint --- ⭐️
+                    'https://fal.run/fal-ai/veo3/image-to-video', 
+                    { 
+                        image_url: image_urls[0],
+                        prompt: prompt,
+                        
+                        // ⭐️ --- CHANGED: Veo uses a fixed string duration --- ⭐️
+                        duration: "8s", 
+                        
+                        // ⭐️ --- CHANGED: Default to "auto" for aspect ratio --- ⭐️
+                        aspect_ratio: aspect_ratio || "auto", 
+                        
+                        // Veo's default is "720p", but "1080p" is a valid option
+                        resolution: resolution || "720p", 
+                        
+                        generate_audio: generate_audio ?? false
+                        
+                        // ⭐️ --- REMOVED: `fps` is not a Veo parameter --- ⭐️
+                    }
+                );
 
-    // 3. Format the result - This code is now correct!
-    falResult = {
-        images: [falResponse.video], 
-        timings: falResponse.timings || null, // Timings are on the root response
-        description: "Video generated"
-    };
+                // 3. Format the result - This code is compatible!
+                // Your existing mapping works perfectly because Veo3 also
+                // returns a `video` object with a `url` inside.
+                falResult = {
+                    images: [falResponse.video], 
+                    timings: falResponse.timings || null, // Veo doesn't return timings, so this will be null
+                    description: "Video generated"
+                };
 
-    break;
-}
+                break;
+            }
 
           case 'smart_retouch': {
     const briaResult = await fetchFromFal('https://fal.run/fal-ai/bria/eraser', { 
