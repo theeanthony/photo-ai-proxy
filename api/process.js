@@ -75,6 +75,18 @@ module.exports = async (req, res) => {
                 });
                 break;
             }
+                case 'textual_edit': {
+                // Extract parameters sent from the app
+                const { image_url, mask_url, prompt } = apiParams;
+
+                // Call nano-banana with the image, mask, and prompt
+                falResult = await fetchFromFal('https://fal.run/fal-ai/nano-banana/edit', { 
+                    image_urls: [image_url], // nano-banana expects an array
+                    mask_url: mask_url,
+                    prompt: prompt
+               });
+                break;
+            }
 case 'video': {
     // 1. Get the parameters
     const { 
