@@ -88,28 +88,43 @@ module.exports = async (req, res) => {
             case 'sharpen_details':
             case 'neon_noir':
             case 'subject_light':
-   case 'textual_edit': {
-                // Extract parameters sent from the app
-                const { image_url, mask_url, prompt } = apiParams; // mask_url will be undefined if not sent
-                
-                // Build the request body for Fal.ai
-                const falBody = {
-                    image_urls: [image_url], // nano-banana expects an array
-                    prompt: prompt
-                };
+// ... inside your switch (jobType) ...
 
-                // Conditionally add the mask_url if it was provided
-                if (mask_url) {
-                    console.log("[PROCESS-IMAGE] 'textual_edit' includes a mask.");
-                    falBody.mask_url = mask_url;
-                } else {
-                    console.log("[PROCESS-IMAGE] 'textual_edit' does not include a mask.");
-                }
+        case 'textual_edit': {
+            // Extract parameters sent from the app
+            const { image_url, mask_url, prompt } = apiParams;
+
+            if (mask_url) {
+                // --- MASK IS PROVIDED ---
+                // Use the 'flux-pro' model, which is much better
+                // at precise inpainting (filling masked areas).
+
+                console.log("[PROCESS-IMAGE] Masked 'textual_edit'. Using flux-pro/fill.");
                 
-                // Call nano-banana with the conditional body
-                falResult = await fetchFromFal('https://fal.run/fal-ai/nano-banana/edit', falBody);
-                break;
-            }
+                falResult = await fetchFromFal('https://fal.run/fal-ai/flux-pro/v1/fill', { 
+                    image_url: image_url,
+                    mask_url: mask_url,
+                    prompt: prompt, // Use the user's exact prompt
+                    negative_prompt: "repetition, repeating patterns, collage, " +
+                        "duplicated objects, duplicated subjects, frames, borders, incoherent, " +
+                        "disjointed, tiling, artifacts, mirroring"
+                });
+
+            } else {
+                // --- NO MASK PROVIDED ---
+                // Fall back to 'nano-banana' for global, text-only style edits.
+
+                console.log("[PROCESS-IMAGE] Unmasked 'textual_edit'. Using nano-banana.");
+                
+                falResult = await fetchFromFal('https://fal.run/fal-ai/nano-banana/edit', {
+                    image_urls: [image_url],
+                    prompt: prompt
+                });
+            }
+            break;
+        }
+
+// ... continue with case 'video': ...
 case 'video': {
                 // 1. Get the parameters
                 const { 
