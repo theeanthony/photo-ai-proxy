@@ -84,30 +84,38 @@ module.exports = async (req, res) => {
                 break;
             }
 case 'angle_shift': {
-          // --- ⬇️ START FIX ⬇️ ---
-          // 1. Get negative_prompt from apiParams
-          const { image_urls, prompt, negative_prompt } = apiParams;
+          // --- ⬇️ MODIFIED: Added width, height, and image_size logic ⬇️ ---
+          const { image_urls, prompt, negative_prompt, width, height } = apiParams;
 
           const QWEN_MULTI_ANGLE_LORA_URL = "https://huggingface.co/dx8152/Qwen-Edit-2509-Multiple-angles/resolve/main/%E9%95%9C%E5%A4%B4%E8%BD%AC%E6%8D%A2.safetensors";
 
           console.log("[PROCESS-IMAGE] 'angle_shift'. Using qwen-image-edit-plus-lora.");
-          
-          falResult = await fetchFromFal('https://fal.run/fal-ai/qwen-image-edit-plus-lora', { 
+
+          // Create the base body
+          let falBody = { 
               image_urls: image_urls, 
               prompt: prompt,
-              
-              // 2. Pass the negative_prompt to Fal
-              negative_prompt: negative_prompt || "", // Pass it or an empty string
-
+              negative_prompt: negative_prompt || "",
               loras: [
                   {
                       path: QWEN_MULTI_ANGLE_LORA_URL,
-                      // 3. Increase scale for a stronger effect
                       scale: 1.0 
                   }
               ]
-          });
-          // --- ⬆️ END FIX ⬆️ ---
+          };
+
+          // --- ✅ NEW: Explicitly set image_size if provided ---
+          // This will force the output to match the input aspect ratio
+          if (width && height) {
+              falBody.image_size = {
+                  width: width,
+                  height: height
+              };
+              console.log(`[PROCESS-IMAGE] Setting image_size: ${width}x${height}`);
+          }
+          
+          falResult = await fetchFromFal('https://fal.run/fal-ai/qwen-image-edit-plus-lora', falBody);
+          // --- ⬆️ END MODIFICATION ⬆️ ---
           break;
       }
             
