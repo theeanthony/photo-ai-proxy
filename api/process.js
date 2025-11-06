@@ -52,13 +52,16 @@ module.exports = async (req, res) => {
                 const { image_url, banana_prompt, seedream_prompt, width, height } = apiParams;
                 
                 const [bananaResult, seedreamResult] = await Promise.all([
+
                     fetchFromFal('https://fal.run/fal-ai/nano-banana/edit', { 
+
                         image_urls: [image_url], 
+
                         prompt: banana_prompt || "repair photo" 
+
                     }),
-                    
-                    // ✅ MODIFIED: Pass width and height to the seedream API
-                    fetchFromFal('https.fal.run/fal-ai/bytedance/seedream/v4/edit', { 
+
+                    fetchFromFal('https://fal.run/fal-ai/bytedance/seedream/v4/edit', { 
                         image_urls: [image_url], 
                         prompt: seedream_prompt || "repair photo",
                         width: width,     // <-- ADD THIS LINE
