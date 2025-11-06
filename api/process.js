@@ -46,18 +46,26 @@ module.exports = async (req, res) => {
         let falResult;
 
         switch (jobType) {
-            case 'generic_restore': {
-                const { image_url, banana_prompt, seedream_prompt } = apiParams;
+                
+    case 'generic_restore': {
+                // ✅ MODIFIED: Extract width and height
+                const { image_url, banana_prompt, seedream_prompt, width, height } = apiParams;
+                
                 const [bananaResult, seedreamResult] = await Promise.all([
                     fetchFromFal('https://fal.run/fal-ai/nano-banana/edit', { 
                         image_urls: [image_url], 
                         prompt: banana_prompt || "repair photo" 
                     }),
-                    fetchFromFal('https://fal.run/fal-ai/bytedance/seedream/v4/edit', { 
+                    
+                    // ✅ MODIFIED: Pass width and height to the seedream API
+                    fetchFromFal('https.fal.run/fal-ai/bytedance/seedream/v4/edit', { 
                         image_urls: [image_url], 
-                        prompt: seedream_prompt || "repair photo"
+                        prompt: seedream_prompt || "repair photo",
+                        width: width,     // <-- ADD THIS LINE
+                        height: height    // <-- ADD THIS LINE
                     })
                 ]);
+                
                 falResult = {
                     images: [bananaResult.images[0], seedreamResult.images[0]].filter(Boolean),
                     timings: { 
