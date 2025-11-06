@@ -83,17 +83,23 @@ module.exports = async (req, res) => {
                 };
                 break;
             }
-               case 'angle_shift': {
-          // --- ⬇️ START FIX ⬇️ ---
-          // 1. Destructure "image_urls" (plural) from apiParams
+case 'angle_shift': {
           const { image_urls, prompt } = apiParams;
 
-          const QWEN_MULTI_ANGLE_LORA_URL = "https://huggingface.co/dx8152/Qwen-Edit-2509-Multiple-angles/resolve/main/镜头转换.safetensors";
+          // --- ⬇️ START FIX ⬇️ ---
+
+          // OLD URL (causes UnicodeError):
+          // const QWEN_MULTI_ANGLE_LORA_URL = "https://huggingface.co/dx8152/Qwen-Edit-2509-Multiple-angles/resolve/main/镜头转换.safetensors";
+
+          // NEW URL (Percent-Encoded and ASCII-safe):
+          const QWEN_MULTI_ANGLE_LORA_URL = "https://huggingface.co/dx8152/Qwen-Edit-2509-Multiple-angles/resolve/main/%E9%95%9C%E5%A4%B4%E8%BD%AC%E6%8D%A2.safetensors";
+          
+          // --- ⬆️ END FIX ⬆️ ---
+
 
           console.log("[PROCESS-IMAGE] 'angle_shift'. Using qwen-image-edit-plus-lora.");
           
           falResult = await fetchFromFal('https://fal.run/fal-ai/qwen-image-edit-plus-lora', { 
-              // 2. Pass "image_urls" (plural) to the Fal API
               image_urls: image_urls, 
               prompt: prompt,
               loras: [
@@ -103,7 +109,6 @@ module.exports = async (req, res) => {
                   }
               ]
           });
-          // --- ⬆️ END FIX ⬆️ ---
           break;
       }
             
