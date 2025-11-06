@@ -83,26 +83,27 @@ module.exports = async (req, res) => {
                 };
                 break;
             }
-                case 'angle_shift': {
-          const { image_url, prompt } = apiParams;
+               case 'angle_shift': {
+          // --- ⬇️ START FIX ⬇️ ---
+          // 1. Destructure "image_urls" (plural) from apiParams
+          const { image_urls, prompt } = apiParams;
 
-          // This is the direct download URL for the LoRA from the screenshot
-          // (Source: https://huggingface.co/dx8152/Qwen-Edit-2509-Multiple-angles)
-          const QWEN_MULTI_ANGLE_LORA_URL = "https://huggingface.co/dx8152/Qwen-Edit-2509-Multiple-angles/resolve/main/Qwen-Image-Multiple-Angles-LoRA.safetensors";
+          const QWEN_MULTI_ANGLE_LORA_URL = "https://huggingface.co/dx8152/Qwen-Edit-2509-Multiple-angles/resolve/main/镜头转换.safetensors";
 
           console.log("[PROCESS-IMAGE] 'angle_shift'. Using qwen-image-edit-plus-lora.");
           
           falResult = await fetchFromFal('https://fal.run/fal-ai/qwen-image-edit-plus-lora', { 
-              image_url: image_url,
+              // 2. Pass "image_urls" (plural) to the Fal API
+              image_urls: image_urls, 
               prompt: prompt,
-              // The 'loras' array is the key part
               loras: [
                   {
                       path: QWEN_MULTI_ANGLE_LORA_URL,
-                      scale: 0.8 // You can tune this scale (0.5 to 1.0)
+                      scale: 0.8 
                   }
               ]
           });
+          // --- ⬆️ END FIX ⬆️ ---
           break;
       }
             
