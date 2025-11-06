@@ -240,6 +240,51 @@ case 'video': {
     }
     break;
 }
+                case 'train_lora': {
+                const { image_urls, character_id } = apiParams;
+                
+                // This is the Vercel endpoint Fal.ai will call when done.
+                const WEBHOOK_URL = `https://photo-ai-proxy.vercel.app/api/lora-webhook`;
+                
+                // Create a unique trigger word for this user/character
+                const triggerWord = `ohwx_${userId.substring(0, 5)}_${character_id.substring(0, 5)}`;
+                
+                // We use the "queue" endpoint for async jobs
+                // This model is for SD 1.5, which matches your 'qwen-image-edit' model
+                const falQueueUrl = 'https://fal.run/queue/fal-ai/lora-trainer';
+                
+                console.log(`[PROCESS-IMAGE] Submitting 'train_lora' job for user ${userId}`);
+
+                const falBody = {
+                    model: "runwayml/stable-diffusion-v1-5",
+                    image_urls: image_urls,
+                    class_prompt: "a photo of a person",
+                    instance_prompt: `a photo of ${triggerWord} person`,
+                    
+                    // This is the most important part!
+                    // We pass context back to our webhook.
+                    webhook_url: `${WEBHOOK_URL}?userId=${userId}&characterId=${character_id}&triggerWord=${triggerWord}`
+                };
+                
+                const response = await fetch(falQueueUrl, {
+                    method: 'POST',
+                    headers: { 
+                        'Authorization': `Key ${FAL_API_KEY}`,
+                        'Content-Type': 'application/json' 
+                    },
+                    body: JSON.stringify(falBody)
+                });
+                
+                if (response.status !== 202) { // 202 Accepted
+                    const errorText = await response.text();
+                    throw new Error(`Failed to submit LoRA training job: ${errorText}`);
+                }
+
+                // IMPORTANT: Return 202 (Accepted) to the app *immediately*.
+                // The app is not waiting for the LoRA to be trained, only for
+                // the job to be successfully submitted.
+                return res.status(202).json({ message: "Training job submitted." });
+            }
 
 case 'ai_resize': {
     const { image_url, mask_url, expansion_direction } = apiParams;
