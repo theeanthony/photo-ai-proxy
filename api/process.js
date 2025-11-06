@@ -61,7 +61,11 @@ module.exports = async (req, res) => {
 
                     }),
 
-            fetchFromFal('https.fal.run/fal-ai/bytedance/seedream/v4/edit', { 
+                    fetchFromFal('https://fal.run/fal-ai/bytedance/seedream/v4/edit', { 
+
+                        image_urls: [image_url], 
+
+                        prompt: seedream_prompt || "repair photo",
                         image_urls: [image_url], 
                         prompt: seedream_prompt || "repair photo",
                         image_size: { // <-- Pass an object named "image_size"
