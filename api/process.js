@@ -84,40 +84,55 @@ module.exports = async (req, res) => {
                 break;
             }
 case 'angle_shift': {
-          // --- ⬇️ MODIFIED: Added width, height, and image_size logic ⬇️ ---
-          const { image_urls, prompt, negative_prompt, width, height } = apiParams;
+                // --- ⬇️ MODIFIED: Get the new parameter ⬇️ ---
+                const { 
+                    image_urls, 
+                    prompt, 
+                    negative_prompt, 
+                    width, 
+                    height, 
+                    user_lora_url  // <-- ✅ NEW
+                } = apiParams;
 
-          const QWEN_MULTI_ANGLE_LORA_URL = "https://huggingface.co/dx8152/Qwen-Edit-2509-Multiple-angles/resolve/main/%E9%95%9C%E5%A4%B4%E8%BD%AC%E6%8D%A2.safetensors";
+                const QWEN_MULTI_ANGLE_LORA_URL = "https://huggingface.co/dx8152/Qwen-Edit-2509-Multiple-angles/resolve/main/%E9%95%9C%E5%A4%B4%E8%BD%AC%E6%8D%A2.safetensors";
+                
+                console.log("[PROCESS-IMAGE] 'angle_shift'.");
+                
+                let falBody = { 
+                    image_urls: image_urls, 
+                    prompt: prompt, // This prompt now contains the trigger word
+                    negative_prompt: negative_prompt || "",
+                };
 
-          console.log("[PROCESS-IMAGE] 'angle_shift'. Using qwen-image-edit-plus-lora.");
+                // --- ⬇️ MODIFIED: Build the LoRA array dynamically ⬇️ ---
+                
+                // Start with the base angle LoRA
+                let loras = [
+                    {
+                        path: QWEN_MULTI_ANGLE_LORA_URL,
+                        scale: 1.0 
+                    }
+                ];
 
-          // Create the base body
-          let falBody = { 
-              image_urls: image_urls, 
-              prompt: prompt,
-              negative_prompt: negative_prompt || "",
-              loras: [
-                  {
-                      path: QWEN_MULTI_ANGLE_LORA_URL,
-                      scale: 1.0 
-                  }
-              ]
-          };
+                // If the user sent a character LoRA, add it to the array
+                if (user_lora_url) {
+                    console.log(`[PROCESS-IMAGE] Adding user character LoRA: ${user_lora_url}`);
+                    loras.push({
+                        path: user_lora_url,
+                        scale: 0.85 // Start with 0.85. You can tune this.
+                    });
+                }
 
-          // --- ✅ NEW: Explicitly set image_size if provided ---
-          // This will force the output to match the input aspect ratio
-          if (width && height) {
-              falBody.image_size = {
-                  width: width,
-                  height: height
-              };
-              console.log(`[PROCESS-IMAGE] Setting image_size: ${width}x${height}`);
-          }
-          
-          falResult = await fetchFromFal('https://fal.run/fal-ai/qwen-image-edit-plus-lora', falBody);
-          // --- ⬆️ END MODIFICATION ⬆️ ---
-          break;
-      }
+                falBody.loras = loras; // Assign the final array
+                // --- ⬆️ END MODIFICATION ⬆️ ---
+                
+                if (width && height) {
+                    falBody.image_size = { width: width, height: height };
+                }
+                
+                falResult = await fetchFromFal('https://fal.run/fal-ai/qwen-image-edit-plus-lora', falBody);
+                break;
+            }
             
             case 'colorize': {
                 const { image_url, prompt } = apiParams;
