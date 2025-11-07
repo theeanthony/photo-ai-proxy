@@ -115,27 +115,19 @@ case 'new_resize': {
             }
 case 'angle_shift': {
     // 1. Get all parameters from the client
+    // We only need image_urls, prompt, negative_prompt, width, and height
     const { image_urls, prompt, negative_prompt, width, height } = apiParams;
-
-    // 2. Define the LoRA you want to use
-    const QWEN_MULTI_ANGLE_LORA_URL = "https://huggingface.co/dx8152/Qwen-Edit-2509-Multiple-angles/resolve/main/%E9%95%9C%E5%A4%B4%E8%BD%AC%E6%8D%A2.safetensors";
 
     console.log("[PROCESS-IMAGE] 'angle_shift'. Using qwen-image-edit-plus-lora.");
 
-    // 3. Create the base request body
-    let falBody = { 
-        image_urls: image_urls, 
+    // 2. Create the base request body (WITHOUT the 'loras' array)
+    let falBody = { 
+        image_urls: image_urls, 
         prompt: prompt,
         negative_prompt: negative_prompt || "",
-        // loras: [
-        //     {
-        //         path: QWEN_MULTI_ANGLE_LORA_URL,
-        //         scale: 1.0 
-        //     }
-        // ]
     };
 
-    // 4. Conditionally add the image_size if width and height were provided
+    // 3. Conditionally add the image_size if width and height were provided
     if (width && height) {
         falBody.image_size = {
             width: width,
@@ -143,11 +135,11 @@ case 'angle_shift': {
         };
         console.log(`[PROCESS-IMAGE] Setting image_size: ${width}x${height}`);
     }
-    
-    // 5. Make the single, final API call
+     
+    // 4. Make the single, final API call
     console.log("[PROCESS-IMAGE] Calling Fal with body:", JSON.stringify(falBody, null, 2));
     falResult = await fetchFromFal('https://fal.run/fal-ai/qwen-image-edit-plus-lora', falBody);
-    
+     
     break;
 }
                
