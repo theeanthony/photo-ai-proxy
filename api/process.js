@@ -47,39 +47,33 @@ module.exports = async (req, res) => {
 
         switch (jobType) {
     // ADD THIS NEW CASE TO YOUR BACKEND
-case 'v2_resize': {
-    // 1. Destructure the new parameters from the client
-    const { original_image_url, expansion, expansion_direction } = apiParams;
-
-    // 2. Build the same smart prompt as your old 'ai_resize'
+case 'new_resize': {
+    const { image_url, mask_url, expansion_direction } = apiParams;
+    
+    // Build prompt...
     let contextualPrompt = "A high-quality, realistic photograph. ";
-    
     if (expansion_direction === 'vertical') {
-        contextualPrompt += "Naturally extend the sky upward and the ground/floor downward. " +
-            "Maintain the horizon line and perspective. " +
-            "Continue existing patterns seamlessly (clouds, terrain, flooring). ";
+        contextualPrompt += "Naturally extend the sky upward and the ground/floor downward... ";
     } else if (expansion_direction === 'horizontal') {
-        contextualPrompt += "Naturally extend the scene to the left and right sides. " +
-            "Maintain perspective and scale of existing elements. " +
-            "Continue architectural or environmental patterns seamlessly. ";
+        contextualPrompt += "Naturally extend the scene to the left and right sides... ";
     } else {
-        contextualPrompt += "Extend the scene in all directions naturally. " +
-            "Maintain perspective, lighting, and existing scene elements. ";
+        contextualPrompt += "Extend the scene in all directions naturally... ";
     }
+    contextualPrompt += "Match the exact lighting, color palette, and style... ";
     
-    contextualPrompt += "Match the exact lighting, color palette, and style of the original photo. " +
-        "Fill masked areas with contextually appropriate content.";
+    const negativePrompt = "repetition, repeating patterns, collage, stacked images, ..."; // Your full negative prompt
 
-    // 3. Call the new 'image-apps-v2/outpaint' endpoint
-    falResult = await fetchFromFal('https://fal.run/fal-ai/image-apps-v2/outpaint', { 
-        image_url: original_image_url,
-        expand_top: expansion.top,
-        expand_bottom: expansion.bottom,
-        expand_left: expansion.left,
-        expand_right: expansion.right,
-        prompt: contextualPrompt
-        // Note: This endpoint does not support a negative_prompt,
-        // so we don't include it.
+    // ✅ ADD LOGGING
+    console.log(`[JOB: new_resize] Calling fal-ai/fooocus/inpaint...`);
+    console.log(`  - Image URL: ${image_url}`);
+    console.log(`  - Mask URL: ${mask_url}`);
+    
+    falResult = await fetchFromFal('https://fal.run/fal-ai/fooocus/inpaint', { 
+        inpaint_image_url: image_url, // 'image_url' -> 'inpaint_image_url'
+        mask_image_url: mask_url,     // 'mask_url' -> 'mask_image_url'
+        prompt: contextualPrompt,
+        negative_prompt: negativePrompt,
+        inpaint_mode: "Inpaint or Outpaint (default)" 
     });
     break;
 }
