@@ -113,117 +113,57 @@ case 'new_resize': {
                 };
                 break;
             }
-// case 'angle_shift': {
-//                 // --- ⬇️ MODIFIED: Get the new parameter ⬇️ ---
-//                 const { 
-//                     image_urls, 
-//                     prompt, 
-//                     negative_prompt, 
-//                     width, 
-//                     height, 
-//                     user_lora_url  // <-- ✅ NEW
-//                 } = apiParams;
+case 'angle_shift': {
+                // --- ⬇️ MODIFIED: Get the new parameter ⬇️ ---
+                const { 
+                    image_urls, 
+                    prompt, 
+                    negative_prompt, 
+                    width, 
+                    height, 
+                    user_lora_url  // <-- ✅ NEW
+                } = apiParams;
 
-//                 const QWEN_MULTI_ANGLE_LORA_URL = "https://huggingface.co/dx8152/Qwen-Edit-2509-Multiple-angles/resolve/main/%E9%95%9C%E5%A4%B4%E8%BD%AC%E6%8D%A2.safetensors";
+                const QWEN_MULTI_ANGLE_LORA_URL = "https://huggingface.co/dx8152/Qwen-Edit-2509-Multiple-angles/resolve/main/%E9%95%9C%E5%A4%B4%E8%BD%AC%E6%8D%A2.safetensors";
                 
-//                 console.log("[PROCESS-IMAGE] 'angle_shift'.");
+                console.log("[PROCESS-IMAGE] 'angle_shift'.");
                 
-//                 let falBody = { 
-//                     image_urls: image_urls, 
-//                     prompt: prompt, // This prompt now contains the trigger word
-//                     negative_prompt: negative_prompt || "",
-//                 };
+                let falBody = { 
+                    image_urls: image_urls, 
+                    prompt: prompt, // This prompt now contains the trigger word
+                    negative_prompt: negative_prompt || "",
+                };
 
-//                 // --- ⬇️ MODIFIED: Build the LoRA array dynamically ⬇️ ---
+                // --- ⬇️ MODIFIED: Build the LoRA array dynamically ⬇️ ---
                 
-//                 // Start with the base angle LoRA
-//                 let loras = [
-//                     {
-//                         path: QWEN_MULTI_ANGLE_LORA_URL,
-//                         scale: 1.0 
-//                     }
-//                 ];
+                // Start with the base angle LoRA
+                let loras = [
+                    {
+                        path: QWEN_MULTI_ANGLE_LORA_URL,
+                        scale: 1.0 
+                    }
+                ];
 
-//                 // If the user sent a character LoRA, add it to the array
-//                 if (user_lora_url) {
-//                     console.log(`[PROCESS-IMAGE] Adding user character LoRA: ${user_lora_url}`);
-//                     loras.push({
-//                         path: user_lora_url,
-//                         scale: 0.85 // Start with 0.85. You can tune this.
-//                     });
-//                 }
+                // If the user sent a character LoRA, add it to the array
+                if (user_lora_url) {
+                    console.log(`[PROCESS-IMAGE] Adding user character LoRA: ${user_lora_url}`);
+                    loras.push({
+                        path: user_lora_url,
+                        scale: 0.85 // Start with 0.85. You can tune this.
+                    });
+                }
 
-//                 falBody.loras = loras; // Assign the final array
-//                 // --- ⬆️ END MODIFICATION ⬆️ ---
+                falBody.loras = loras; // Assign the final array
+                // --- ⬆️ END MODIFICATION ⬆️ ---
                 
-//                 if (width && height) {
-//                     falBody.image_size = { width: width, height: height };
-//                 }
+                if (width && height) {
+                    falBody.image_size = { width: width, height: height };
+                }
                 
-//                 falResult = await fetchFromFal('https://fal.run/fal-ai/qwen-image-edit-plus-lora', falBody);
-//                 break;
-//             }
-                case 'angle_shift': {
-    const { 
-        image_urls, // This is an array [pose_image_url]
-        prompt, 
-        negative_prompt, 
-        width, 
-        height, 
-        user_lora_url  // This is now the FACE_IMAGE_URL
-    } = apiParams;
-    
-    // 1. THIS IS THE NEW MODEL
-    // This model is built to take an image_url AND an ip_adapter_image_url
-const falModelUrl = 'https://fal.run/fal-ai/ip-adapter-sdxl'; // ✅ THIS IS THE FIX    
-    // 2. This is the correct body for the IP-ADAPTER model
-    const falBody = {
-        // The 'image_url' is the main image (the pose)
-        image_url: image_urls[0], 
-        
-        // 'ip_adapter_image_url' is the FACE reference
-        // We are passing your face URL to this parameter
-        ip_adapter_image_url: user_lora_url, 
-        
-        prompt: prompt,
-        negative_prompt: negative_prompt,
-        width: width,
-        height: height,
-        
-        // You can tune this scale (0.5 - 0.8 is good for faces)
-        ip_adapter_scale: 0.7 
-    };
-    
-    // 3. Run this as a SYNCHRONOUS job (it's fast)
-    console.log(`[PROCESS-IMAGE] Running IP-Adapter job on: ${falModelUrl}`);
-    
-    const response = await fetch(falModelUrl, {
-        method: 'POST',
-        headers: { 
-            'Authorization': `Key ${FAL_API_KEY}`,
-            'Content-Type': 'application/json' 
-        },
-        body: JSON.stringify(falBody)
-    });
-
-    if (!response.ok) {
-        // This will now pass the REAL error from Fal back to the app
-        const errorText = await response.text();
-        console.error(`[PROCESS-IMAGE] Fal.ai error: ${errorText}`);
-        throw new Error(`Failed to run IP-Adapter: ${errorText}`);
-    }
-
-    const data = await response.json();
-    
-    // 4. Return the result immediately
-    // The format MUST match what 'FalAPIResponse' expects
-    // The IP-Adapter model returns 'images', which matches.
-    return res.status(200).json({
-        images: data.images, // 'data.images' is the array of results
-        timings: data.timings, // Pass along timings
-        // Add any other fields your FalAPIResponse needs
-    });
-}
+                falResult = await fetchFromFal('https://fal.run/fal-ai/qwen-image-edit-plus-lora', falBody);
+                break;
+            }
+               
             
             case 'colorize': {
                 const { image_url, prompt } = apiParams;
