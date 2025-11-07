@@ -146,7 +146,7 @@ case 'angle_shift': {
     
     // 5. Make the single, final API call
     console.log("[PROCESS-IMAGE] Calling Fal with body:", JSON.stringify(falBody, null, 2));
-    falResult = await fetchFromFal('https.run/fal-ai/qwen-image-edit-plus-lora', falBody);
+    falResult = await fetchFromFal('https://fal.run/fal-ai/qwen-image-edit-plus-lora', falBody);
     
     break;
 }
