@@ -255,7 +255,7 @@ case 'video': {
     }
     break;
 }
-                case 'train_lora': {
+     case 'train_lora': {
                 const { image_urls, character_id } = apiParams;
                 
                 // This is the Vercel endpoint Fal.ai will call when done.
@@ -264,36 +264,36 @@ case 'video': {
                 // Create a unique trigger word for this user/character
                 const triggerWord = `ohwx_${userId.substring(0, 5)}_${character_id.substring(0, 5)}`;
                 
-                // We use the "queue" endpoint for async jobs
-                // This model is for SD 1.5, which matches your 'qwen-image-edit' model
-const falQueueUrl = 'https://fal.run/fal-ai/lora/queue';
-                    console.log(`[PROCESS-IMAGE] Submitting 'train_lora' job for user ${userId}`);
-
-        const falBody = {
-    model_name: "runwayml/stable-diffusion-v1-5",  // ✅ FIX: Renamed 'model' to 'model_name'
-    image_urls: image_urls,
-    prompt: `a photo of ${triggerWord} person`, // ✅ FIX: Renamed 'instance_prompt' to 'prompt'
-    class_prompt: "a photo of a person", // This is still a valid field
-    webhook_url: `${WEBHOOK_URL}?userId=${userId}&characterId=${character_id}&triggerWord=${triggerWord}`
-};
+                // ✅ FIX 1: We are using the /queue endpoint to run this asynchronously.
+                const falQueueUrl = 'https://fal.run/fal-ai/lora/queue';
                 
-                const response = await fetch(falQueueUrl, {
+                console.log(`[PROCESS-IMAGE] Submitting 'train_lora' job for user ${userId}`);
+
+                // ✅ FIX 2: We are using the correct body schema for the /queue endpoint.
+                const falBody = {
+                    model_name: "runwayml/stable-diffusion-v1-5",  // Renamed from 'model'
+                    image_urls: image_urls,
+                    prompt: `a photo of ${triggerWord} person`, // Renamed from 'instance_prompt'
+                    class_prompt: "a photo of a person",
+                    webhook_url: `${WEBHOOK_URL}?userId=${userId}&characterId=${character_id}&triggerWord=${triggerWord}`
+                };
+                
+                const response = await fetch(falQueueUrl, { // Using the /queue URL
                     method: 'POST',
                     headers: { 
                         'Authorization': `Key ${FAL_API_KEY}`,
                         'Content-Type': 'application/json' 
                     },
-                    body: JSON.stringify(falBody)
+                    body: JSON.stringify(falBody) // Using the correct body
                 });
                 
-                if (response.status !== 202) { // 202 Accepted
+                // We correctly expect a 202 (Accepted) status
+                if (response.status !== 202) { 
                     const errorText = await response.text();
                     throw new Error(`Failed to submit LoRA training job: ${errorText}`);
                 }
 
-                // IMPORTANT: Return 202 (Accepted) to the app *immediately*.
-                // The app is not waiting for the LoRA to be trained, only for
-                // the job to be successfully submitted.
+                // Return 202 to the app immediately.
                 return res.status(202).json({ message: "Training job submitted." });
             }
 
