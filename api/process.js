@@ -255,39 +255,41 @@ case 'video': {
     }
     break;
 }
-     case 'train_lora': {
+    case 'train_lora': {
                 const { image_urls, character_id } = apiParams;
                 
-                // This is the Vercel endpoint Fal.ai will call when done.
                 const WEBHOOK_URL = `https://photo-ai-proxy.vercel.app/api/lora-webhook`;
-                
-                // Create a unique trigger word for this user/character
                 const triggerWord = `ohwx_${userId.substring(0, 5)}_${character_id.substring(0, 5)}`;
                 
-                // ✅ FIX 1: We are using the /queue endpoint to run this asynchronously.
-                const falQueueUrl = 'https://fal.run/fal-ai/lora/queue';
+                // --- ✅ START FIX ---
                 
-                console.log(`[PROCESS-IMAGE] Submitting 'train_lora' job for user ${userId}`);
+                // 1. This is the correct endpoint for an ASYNCHRONOUS job.
+                // We are telling the 'queue' system to run the 'fal-ai/sd15-lora-trainer' model.
+                const falQueueUrl = 'https://fal.run/queue/fal-ai/sd15-lora-trainer';
+                
+                console.log(`[PROCESS-IMAGE] Submitting 'train_lora' job for user ${userId} to: ${falQueueUrl}`);
 
-                // ✅ FIX 2: We are using the correct body schema for the /queue endpoint.
+                // 2. This is the correct body schema for THIS training model.
+                // It uses 'image_urls' and 'concept_prompt', not 'prompt' or 'model_name'.
                 const falBody = {
-                    model_name: "runwayml/stable-diffusion-v1-5",  // Renamed from 'model'
                     image_urls: image_urls,
-                    prompt: `a photo of ${triggerWord} person`, // Renamed from 'instance_prompt'
+                    concept_prompt: `a photo of ${triggerWord} person`,
                     class_prompt: "a photo of a person",
                     webhook_url: `${WEBHOOK_URL}?userId=${userId}&characterId=${character_id}&triggerWord=${triggerWord}`
                 };
                 
-                const response = await fetch(falQueueUrl, { // Using the /queue URL
+                // --- END FIX ---
+                
+                const response = await fetch(falQueueUrl, {
                     method: 'POST',
                     headers: { 
                         'Authorization': `Key ${FAL_API_KEY}`,
                         'Content-Type': 'application/json' 
                     },
-                    body: JSON.stringify(falBody) // Using the correct body
+                    body: JSON.stringify(falBody)
                 });
                 
-                // We correctly expect a 202 (Accepted) status
+                // We expect a 202 (Accepted) for a queued job
                 if (response.status !== 202) { 
                     const errorText = await response.text();
                     throw new Error(`Failed to submit LoRA training job: ${errorText}`);
