@@ -269,16 +269,13 @@ case 'video': {
                 const falModelUrl = 'https://fal.run/fal-ai/lora'; // ✅ This is correct                    
                 console.log(`[PROCESS-IMAGE] Submitting 'train_lora' job for user ${userId}`);
 
-                const falBody = {
-                    model: "runwayml/stable-diffusion-v1-5",
-                    image_urls: image_urls,
-                    class_prompt: "a photo of a person",
-                    instance_prompt: `a photo of ${triggerWord} person`,
-                    
-                    // This is the most important part!
-                    // We pass context back to our webhook.
-                    webhook_url: `${WEBHOOK_URL}?userId=${userId}&characterId=${character_id}&triggerWord=${triggerWord}`
-                };
+        const falBody = {
+    model_name: "runwayml/stable-diffusion-v1-5",  // ✅ FIX: Renamed 'model' to 'model_name'
+    image_urls: image_urls,
+    prompt: `a photo of ${triggerWord} person`, // ✅ FIX: Renamed 'instance_prompt' to 'prompt'
+    class_prompt: "a photo of a person", // This is still a valid field
+    webhook_url: `${WEBHOOK_URL}?userId=${userId}&characterId=${character_id}&triggerWord=${triggerWord}`
+};
                 
                 const response = await fetch(falModelUrl, {
                     method: 'POST',
