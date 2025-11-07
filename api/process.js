@@ -266,8 +266,7 @@ case 'video': {
                 
                 // We use the "queue" endpoint for async jobs
                 // This model is for SD 1.5, which matches your 'qwen-image-edit' model
-                const falModelUrl = 'https://fal.run/fal-ai/lora-trainer'; // ✅ This is correct  
-                    
+                const falModelUrl = 'https://fal.run/fal-ai/lora'; // ✅ This is correct                    
                 console.log(`[PROCESS-IMAGE] Submitting 'train_lora' job for user ${userId}`);
 
                 const falBody = {
