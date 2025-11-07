@@ -116,7 +116,7 @@ case 'new_resize': {
 case 'angle_shift': {
           // --- ⬇️ START FIX ⬇️ ---
           // 1. Get negative_prompt from apiParams
-          const { image_urls, prompt, negative_prompt } = apiParams;
+          // const { image_urls, prompt, negative_prompt } = apiParams;
           // --- ⬇️ MODIFIED: Added width, height, and image_size logic ⬇️ ---
           const { image_urls, prompt, negative_prompt, width, height } = apiParams;
 
