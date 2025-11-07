@@ -130,10 +130,6 @@ case 'angle_shift': {
           let falBody = { 
               image_urls: image_urls, 
               prompt: prompt,
-              
-              // 2. Pass the negative_prompt to Fal
-              negative_prompt: negative_prompt || "", // Pass it or an empty string
-
               negative_prompt: negative_prompt || "",
               loras: [
                   {
