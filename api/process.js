@@ -46,7 +46,43 @@ module.exports = async (req, res) => {
         let falResult;
 
         switch (jobType) {
-                
+    // ADD THIS NEW CASE TO YOUR BACKEND
+case 'v2_resize': {
+    // 1. Destructure the new parameters from the client
+    const { original_image_url, expansion, expansion_direction } = apiParams;
+
+    // 2. Build the same smart prompt as your old 'ai_resize'
+    let contextualPrompt = "A high-quality, realistic photograph. ";
+    
+    if (expansion_direction === 'vertical') {
+        contextualPrompt += "Naturally extend the sky upward and the ground/floor downward. " +
+            "Maintain the horizon line and perspective. " +
+            "Continue existing patterns seamlessly (clouds, terrain, flooring). ";
+    } else if (expansion_direction === 'horizontal') {
+        contextualPrompt += "Naturally extend the scene to the left and right sides. " +
+            "Maintain perspective and scale of existing elements. " +
+            "Continue architectural or environmental patterns seamlessly. ";
+    } else {
+        contextualPrompt += "Extend the scene in all directions naturally. " +
+            "Maintain perspective, lighting, and existing scene elements. ";
+    }
+    
+    contextualPrompt += "Match the exact lighting, color palette, and style of the original photo. " +
+        "Fill masked areas with contextually appropriate content.";
+
+    // 3. Call the new 'image-apps-v2/outpaint' endpoint
+    falResult = await fetchFromFal('https://fal.run/fal-ai/image-apps-v2/outpaint', { 
+        image_url: original_image_url,
+        expand_top: expansion.top,
+        expand_bottom: expansion.bottom,
+        expand_left: expansion.left,
+        expand_right: expansion.right,
+        prompt: contextualPrompt
+        // Note: This endpoint does not support a negative_prompt,
+        // so we don't include it.
+    });
+    break;
+}
     case 'generic_restore': {
                 // ✅ MODIFIED: Extract width and height
                 const { image_url, banana_prompt, seedream_prompt, width, height } = apiParams;
