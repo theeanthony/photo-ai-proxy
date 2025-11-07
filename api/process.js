@@ -266,8 +266,8 @@ case 'video': {
                 
                 // We use the "queue" endpoint for async jobs
                 // This model is for SD 1.5, which matches your 'qwen-image-edit' model
-                const falModelUrl = 'https://fal.run/fal-ai/lora'; // ✅ This is correct                    
-                console.log(`[PROCESS-IMAGE] Submitting 'train_lora' job for user ${userId}`);
+const falQueueUrl = 'https://fal.run/fal-ai/lora/queue';
+                    console.log(`[PROCESS-IMAGE] Submitting 'train_lora' job for user ${userId}`);
 
         const falBody = {
     model_name: "runwayml/stable-diffusion-v1-5",  // ✅ FIX: Renamed 'model' to 'model_name'
@@ -277,7 +277,7 @@ case 'video': {
     webhook_url: `${WEBHOOK_URL}?userId=${userId}&characterId=${character_id}&triggerWord=${triggerWord}`
 };
                 
-                const response = await fetch(falModelUrl, {
+                const response = await fetch(falQueueUrl, {
                     method: 'POST',
                     headers: { 
                         'Authorization': `Key ${FAL_API_KEY}`,
