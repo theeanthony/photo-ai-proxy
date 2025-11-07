@@ -145,8 +145,7 @@ module.exports = async (req, res) => {
     
     // 1. THIS IS THE NEW MODEL
     // This model is built to take an image_url AND an ip_adapter_image_url
-    const falModelUrl = 'fal-ai/ip-adapter-sdxl'; 
-    
+const falModelUrl = 'https://fal.run/fal-ai/ip-adapter-sdxl'; // ✅ THIS IS THE FIX    
     // 2. This is the correct body for the IP-ADAPTER model
     const falBody = {
         // The 'image_url' is the main image (the pose)
