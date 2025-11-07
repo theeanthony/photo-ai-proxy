@@ -127,12 +127,12 @@ case 'angle_shift': {
         image_urls: image_urls, 
         prompt: prompt,
         negative_prompt: negative_prompt || "",
-        loras: [
-            {
-                path: QWEN_MULTI_ANGLE_LORA_URL,
-                scale: 1.0 
-            }
-        ]
+        // loras: [
+        //     {
+        //         path: QWEN_MULTI_ANGLE_LORA_URL,
+        //         scale: 1.0 
+        //     }
+        // ]
     };
 
     // 4. Conditionally add the image_size if width and height were provided
