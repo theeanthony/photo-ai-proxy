@@ -114,48 +114,42 @@ case 'new_resize': {
                 break;
             }
 case 'angle_shift': {
-          // --- ⬇️ START FIX ⬇️ ---
-          // 1. Get negative_prompt from apiParams
-          // const { image_urls, prompt, negative_prompt } = apiParams;
-          // --- ⬇️ MODIFIED: Added width, height, and image_size logic ⬇️ ---
-          const { image_urls, prompt, negative_prompt, width, height } = apiParams;
+    // 1. Get all parameters from the client
+    const { image_urls, prompt, negative_prompt, width, height } = apiParams;
 
-          const QWEN_MULTI_ANGLE_LORA_URL = "https://huggingface.co/dx8152/Qwen-Edit-2509-Multiple-angles/resolve/main/%E9%95%9C%E5%A4%B4%E8%BD%AC%E6%8D%A2.safetensors";
+    // 2. Define the LoRA you want to use
+    const QWEN_MULTI_ANGLE_LORA_URL = "https://huggingface.co/dx8152/Qwen-Edit-2509-Multiple-angles/resolve/main/%E9%95%9C%E5%A4%B4%E8%BD%AC%E6%8D%A2.safetensors";
 
-          console.log("[PROCESS-IMAGE] 'angle_shift'. Using qwen-image-edit-plus-lora.");
-          
-          falResult = await fetchFromFal('https://fal.run/fal-ai/qwen-image-edit-plus-lora', { 
+    console.log("[PROCESS-IMAGE] 'angle_shift'. Using qwen-image-edit-plus-lora.");
 
-          // Create the base body
-          let falBody = { 
-              image_urls: image_urls, 
-              prompt: prompt,
-              negative_prompt: negative_prompt || "",
-              loras: [
-                  {
-                      path: QWEN_MULTI_ANGLE_LORA_URL,
-                      // 3. Increase scale for a stronger effect
-                      scale: 1.0 
-                  }
-              ]
-          });
-          // --- ⬆️ END FIX ⬆️ ---
-          };
+    // 3. Create the base request body
+    let falBody = { 
+        image_urls: image_urls, 
+        prompt: prompt,
+        negative_prompt: negative_prompt || "",
+        loras: [
+            {
+                path: QWEN_MULTI_ANGLE_LORA_URL,
+                scale: 1.0 
+            }
+        ]
+    };
 
-          // --- ✅ NEW: Explicitly set image_size if provided ---
-          // This will force the output to match the input aspect ratio
-          if (width && height) {
-              falBody.image_size = {
-                  width: width,
-                  height: height
-              };
-              console.log(`[PROCESS-IMAGE] Setting image_size: ${width}x${height}`);
-          }
-          
-          falResult = await fetchFromFal('https://fal.run/fal-ai/qwen-image-edit-plus-lora', falBody);
-          // --- ⬆️ END MODIFICATION ⬆️ ---
-          break;
-      }
+    // 4. Conditionally add the image_size if width and height were provided
+    if (width && height) {
+        falBody.image_size = {
+            width: width,
+            height: height
+        };
+        console.log(`[PROCESS-IMAGE] Setting image_size: ${width}x${height}`);
+    }
+    
+    // 5. Make the single, final API call
+    console.log("[PROCESS-IMAGE] Calling Fal with body:", JSON.stringify(falBody, null, 2));
+    falResult = await fetchFromFal('https.run/fal-ai/qwen-image-edit-plus-lora', falBody);
+    
+    break;
+}
                
             
             case 'colorize': {
