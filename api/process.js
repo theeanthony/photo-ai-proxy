@@ -152,20 +152,33 @@ case 'angle_shift': {
                 });
                 break;
             }
-                case 'studio_glow':
-            case 'smart_skin':
-            case 'backlight_savior':
-            case 'golden_hour':
-            case 'vibrant_nature':
-            case 'portrait_pop':
-            case 'analog_film':
-            case 'moody_cinema':
-            case 'foodie_fix':
-            case 'minimalist_white':
-            case 'sharpen_details':
-            case 'neon_noir':
-            case 'subject_light':
-// ... inside your switch (jobType) ...
+            case 'studio_glow':
+            case 'smart_skin':
+            case 'backlight_savior':
+            case 'golden_hour':
+            case 'vibrant_nature':
+            case 'portrait_pop':
+            case 'analog_film':
+            case 'moody_cinema':
+            case 'foodie_fix':
+            case 'minimalist_white':
+            case 'sharpen_details':
+            case 'neon_noir':
+            case 'subject_light': {
+                console.log(`[PROCESS-IMAGE] AI Filter job: '${jobType}'. Using fal-ai/reve/edit.`);
+                
+                // 1. Get params from performAIFilter (image_url is singular)
+                const { image_url, prompt } = apiParams;
+
+                // 2. Call fal-ai/reve/edit
+                // We wrap the singular 'image_url' in an array to match the
+                // 'image_urls' (plural) schema that reve/edit expects.
+                falResult = await fetchFromFal('https://fal.run/fal-ai/reve/edit', { 
+                    image_urls: [image_url], 
+                    prompt: prompt
+                });
+                break;
+            }
 
         case 'textual_edit': {
             // Extract parameters sent from the app
