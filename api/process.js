@@ -174,7 +174,7 @@ case 'angle_shift': {
                 // We wrap the singular 'image_url' in an array to match the
                 // 'image_urls' (plural) schema that reve/edit expects.
                 falResult = await fetchFromFal('https://fal.run/fal-ai/reve/edit', { 
-                    image_urls: [image_url], 
+                    image_url: image_url,
                     prompt: prompt
                 });
                 break;
