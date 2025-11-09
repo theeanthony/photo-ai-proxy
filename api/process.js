@@ -179,6 +179,38 @@ case 'angle_shift': {
                 });
                 break;
             }
+            case 'outfit_transfer': {
+                // Extract parameters sent from the app
+                const { image_url, style_url, mask_url, prompt } = apiParams;
+        
+                if (mask_url) {
+                    // --- MASK IS PROVIDED ---
+                    // Use the 'flux-pro' inpainting model.
+                    // This model only uses the mask and text prompt.
+                    // As discussed, it will IGNORE the style_url.
+                    console.log("[PROCESS-IMAGE] Masked 'outfit_transfer'. Using flux-pro/fill. Style URL will be IGNORED.");
+                    
+                    falResult = await fetchFromFal('https://fal.run/fal-ai/flux-pro/v1/fill', { 
+                        image_url: image_url,
+                        mask_url: mask_url,
+                        prompt: prompt || "change the outfit in the masked area, make it look natural",
+                        negative_prompt: "repetition, repeating patterns, collage, " +
+                            "duplicated objects, disjointed, artifacts, mirroring, blurry"
+                    });
+        
+                } else {
+                    // --- NO MASK PROVIDED (AI GUESSES) ---
+                    // Use 'nano-banana' for style transfer.
+                    // This model uses the image_url, style_url, and text prompt.
+                    console.log("[PROCESS-IMAGE] Unmasked 'outfit_transfer'. Using nano-banana/edit for style transfer.");
+                    
+                    falResult = await fetchFromFal('https://fal.run/fal-ai/nano-banana/edit', {
+                        image_urls: [image_url, style_url], // Pass both base image and style image
+                        prompt: prompt || "Apply the style from the second image to the clothing in the first image."
+                    });
+                }
+                break;
+            }
 
         case 'textual_edit': {
             // Extract parameters sent from the app
