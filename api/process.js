@@ -184,17 +184,17 @@ case 'angle_shift': {
                 });
                 break;
             }
-            case 'outfit_transfer': {
+           case 'outfit_transfer': {
                 // ✅ MODIFIED: Get width/height. 'mask_url' is now ignored.
                 const { image_url, style_url, prompt, width, height } = apiParams;
         
                 console.log("[PROCESS-IMAGE] 'outfit_transfer'. Using seedream/v4/edit. Mask will be ignored.");
                 
                 // --- 💡 NEW, STRONGER DEFAULT PROMPT 💡 ---
-                const defaultPrompt = "Apply the style, fabric, and color from the second image " +
-                    "ONLY to the visible clothing in the first image. " +
-                    "The person's face, skin, hair, and the background must be preserved exactly as they are. " +
-                    "Do not add or invent new body parts like legs or arms. Do not change the person's pose.";
+                const defaultPrompt = "Combine the style from the images of clothing to ONLY the areas that match the person that are visible. So hat goes on a head if the head is visible, jeans on pants if legs are visible, etc." +
+                                                                            "The person's face, skin, hair, and background must be preserved. " +
+                                                                            "Do not add new body parts. Do not change the face.";
+                                                                            
 
                 falResult = await fetchFromFal('https://fal.run/fal-ai/bytedance/seedream/v4/edit', { 
                     
