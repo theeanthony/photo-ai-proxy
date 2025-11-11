@@ -194,14 +194,14 @@ case 'angle_shift': {
                 const defaultPrompt = "Combine the style from the images of clothing to ONLY the areas that match the person that are visible. So hat goes on a head if the head is visible, jeans on pants if legs are visible, etc." +
                                                                             "The person's face, skin, hair, and background must be preserved. " +
                                                                             "Do not add new body parts. Do not change the face.";
-                                                                            
+                const safetyPrompt = prompt + defaultPrompt;
 
                 falResult = await fetchFromFal('https://fal.run/fal-ai/bytedance/seedream/v4/edit', { 
                     
                     image_urls: [image_url, style_url], 
                     
                     // Use the user's prompt OR our new default
-                    prompt: prompt && !prompt.isEmpty ? prompt : defaultPrompt,
+                    prompt: safetyPrompt && !prompt.isEmpty ? safetyPrompt : defaultPrompt,
                     
                     image_size: {
                         width: width,
