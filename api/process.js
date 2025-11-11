@@ -184,24 +184,27 @@ case 'angle_shift': {
                 });
                 break;
             }
-           case 'outfit_transfer': {
-                // ✅ MODIFIED: Get width/height. 'mask_url' is now ignored.
-                const { image_url, style_url, prompt, width, height } = apiParams;
+            case 'outfit_transfer': {
+                // ✅ FIX: Destructure 'style_urls' (plural array) instead of 'style_url'
+                const { image_url, style_urls, prompt, width, height } = apiParams;
         
                 console.log("[PROCESS-IMAGE] 'outfit_transfer'. Using seedream/v4/edit. Mask will be ignored.");
                 
-                // --- 💡 NEW, STRONGER DEFAULT PROMPT 💡 ---
                 const defaultPrompt = "Combine the style from the images of clothing to ONLY the areas that match the person that are visible. So hat goes on a head if the head is visible, jeans on pants if legs are visible, etc." +
                                                                             "The person's face, skin, hair, and background must be preserved. " +
                                                                             "Do not add new body parts. Do not change the face.";
-                const safetyPrompt = prompt + defaultPrompt;
+                const safetyPrompt = prompt ? prompt + " " + defaultPrompt : defaultPrompt;
+                
+                // ✅ FIX: Combine the base image URL with the style URLs array
+                const allImageUrls = [image_url, ...style_urls];
+                
+                console.log(`[PROCESS-IMAGE] Sending ${allImageUrls.length} total images to Fal.`);
 
                 falResult = await fetchFromFal('https://fal.run/fal-ai/bytedance/seedream/v4/edit', { 
                     
-                    image_urls: [image_url, style_url], 
+                    image_urls: allImageUrls, // Pass the combined array
                     
-                    // Use the user's prompt OR our new default
-                    prompt: safetyPrompt && !prompt.isEmpty ? safetyPrompt : defaultPrompt,
+                    prompt: safetyPrompt,
                     
                     image_size: {
                         width: width,
