@@ -188,18 +188,21 @@ case 'angle_shift': {
                 // ✅ MODIFIED: Get width/height. 'mask_url' is now ignored.
                 const { image_url, style_url, prompt, width, height } = apiParams;
         
-                // 🛑 We no longer check for 'mask_url' because 'seedream' doesn't support it.
-                // We get size-preservation and better style blending in exchange.
                 console.log("[PROCESS-IMAGE] 'outfit_transfer'. Using seedream/v4/edit. Mask will be ignored.");
                 
+                // --- 💡 NEW, STRONGER DEFAULT PROMPT 💡 ---
+                const defaultPrompt = "Apply the style, fabric, and color from the second image " +
+                    "ONLY to the visible clothing in the first image. " +
+                    "The person's face, skin, hair, and the background must be preserved exactly as they are. " +
+                    "Do not add or invent new body parts like legs or arms. Do not change the person's pose.";
+
                 falResult = await fetchFromFal('https://fal.run/fal-ai/bytedance/seedream/v4/edit', { 
                     
-                    // Pass both images: [0] is base, [1] is style
                     image_urls: [image_url, style_url], 
                     
-                    prompt: prompt || "Apply the style from the second image to the clothing in the first image, preserving the person and background.",
+                    // Use the user's prompt OR our new default
+                    prompt: prompt && !prompt.isEmpty ? prompt : defaultPrompt,
                     
-                    // ✅ This is the fix for preserving image size
                     image_size: {
                         width: width,
                         height: height
