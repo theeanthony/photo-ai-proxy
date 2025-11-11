@@ -192,7 +192,9 @@ case 'angle_shift': {
                 
                 const defaultPrompt = "Combine the styles from the clothing images and apply them to the person. " +
                                                 "The person's face, skin, hair, and background must be preserved. " +
-                                                "Do not add new body parts. Do not change the face. Do not zoom in and or zoom out the photo at all. Do not change the background.";
+                                                "Do not add new body parts. Do not change the face. Do not enlarge or shrink any body parts of the person" +
+                                                 "Do not change the background. Make the clothing fit nicely with the body. Do not change the persons face.";
+                                                
                 const safetyPrompt = prompt ? prompt + " " + defaultPrompt : defaultPrompt;
                 
                 // ✅ FIX: Combine the base image URL with the style URLs array
