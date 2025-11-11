@@ -185,35 +185,27 @@ case 'angle_shift': {
                 break;
             }
             case 'outfit_transfer': {
-                // Extract parameters sent from the app
-                const { image_url, style_url, mask_url, prompt } = apiParams;
+                // ✅ MODIFIED: Get width/height. 'mask_url' is now ignored.
+                const { image_url, style_url, prompt, width, height } = apiParams;
         
-                if (mask_url) {
-                    // --- MASK IS PROVIDED ---
-                    // Use the 'flux-pro' inpainting model.
-                    // This model only uses the mask and text prompt.
-                    // As discussed, it will IGNORE the style_url.
-                    console.log("[PROCESS-IMAGE] Masked 'outfit_transfer'. Using flux-pro/fill. Style URL will be IGNORED.");
+                // 🛑 We no longer check for 'mask_url' because 'seedream' doesn't support it.
+                // We get size-preservation and better style blending in exchange.
+                console.log("[PROCESS-IMAGE] 'outfit_transfer'. Using seedream/v4/edit. Mask will be ignored.");
+                
+                falResult = await fetchFromFal('https://fal.run/fal-ai/bytedance/seedream/v4/edit', { 
                     
-                    falResult = await fetchFromFal('https://fal.run/fal-ai/flux-pro/v1/fill', { 
-                        image_url: image_url,
-                        mask_url: mask_url,
-                        prompt: prompt || "change the outfit in the masked area, make it look natural",
-                        negative_prompt: "repetition, repeating patterns, collage, " +
-                            "duplicated objects, disjointed, artifacts, mirroring, blurry"
-                    });
-        
-                } else {
-                    // --- NO MASK PROVIDED (AI GUESSES) ---
-                    // Use 'nano-banana' for style transfer.
-                    // This model uses the image_url, style_url, and text prompt.
-                    console.log("[PROCESS-IMAGE] Unmasked 'outfit_transfer'. Using nano-banana/edit for style transfer.");
+                    // Pass both images: [0] is base, [1] is style
+                    image_urls: [image_url, style_url], 
                     
-                    falResult = await fetchFromFal('https://fal.run/fal-ai/nano-banana/edit', {
-                        image_urls: [image_url, style_url], // Pass both base image and style image
-                        prompt: prompt || "Apply the style from the second image to the clothing in the first image."
-                    });
-                }
+                    prompt: prompt || "Apply the style from the second image to the clothing in the first image, preserving the person and background.",
+                    
+                    // ✅ This is the fix for preserving image size
+                    image_size: {
+                        width: width,
+                        height: height
+                    }
+                });
+                
                 break;
             }
 
