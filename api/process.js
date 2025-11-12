@@ -164,7 +164,8 @@ case 'new_resize': {
                 console.log("[PROCESS-IMAGE] Body:", JSON.stringify(falBody, null, 2));
                 
                 falResult = await fetchFromFal(falEndpoint, falBody);
-                 
+                 console.log("[PROCESS-IMAGE] Fal Response:", JSON.stringify(falResult, null, 2));
+
                 break;
             }
                
