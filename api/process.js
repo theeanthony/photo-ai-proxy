@@ -164,7 +164,31 @@ case 'new_resize': {
                 break;
             }
                
-            
+            case 'hair_styler': {
+                const { image_url, prompt, width, height } = apiParams;
+
+                console.log("[PROCESS-IMAGE] 'hair_styler'. Using fal-ai/flux-pro/kontext for hair editing.");
+                
+                // Flux-Pro/Kontext is an instruction-based editor. 
+                // We'll instruct it to modify the hair based on the user's prompt
+                const instructionPrompt = `Apply the following style and color ONLY to the person's hair: ${prompt}. Preserve the face, background, and body completely.`;
+
+                // We add a default safety negative prompt focused on preservation
+                const negativePrompt = "messy, artifacts, distorted face, changed background, changed clothes, extra limbs, incoherent, tiling";
+
+                falResult = await fetchFromFal('https://fal.run/fal-ai/flux-pro/kontext', { 
+                    image_url: image_url,
+                    prompt: instructionPrompt,
+                    negative_prompt: negativePrompt,
+                    
+                    // We can pass image_size to maintain aspect ratio/quality
+                    image_size: {
+                        width: width,
+                        height: height
+                    }
+                });
+                break;
+            }
             case 'colorize': {
                 const { image_url, prompt } = apiParams;
                 falResult = await fetchFromFal('https://fal.run/fal-ai/nano-banana/edit', { 
