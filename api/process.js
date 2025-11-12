@@ -114,58 +114,60 @@ case 'new_resize': {
                 break;
             }
             case 'angle_shift': {
-                // 1. Get all parameters from the client
+                // 1. ✅ FIXED: Destructure using the ACTUAL key names from Swift
                 const { 
-                    image_urls, 
-                    prompt, 
-                    negative_prompt, 
-                    width, 
-                    height, 
-                    rotation,      // Swift param: rotationAngle (degrees)
-                    zoom,          // Swift param: zoomLevel (0-10)
-                    vertical,      // Swift param: verticalAngle (-1 to 1)
-                    isWideAngle    // Swift param: isWideAngle (boolean)
+                    image_urls,
+                    prompt,
+                    negative_prompt,
+                    width,
+                    height,
+                    rotate_right_left,    // ✅ Changed from 'rotation'
+                    move_forward,         // ✅ Changed from 'zoom'
+                    vertical_angle,       // ✅ Changed from 'vertical'
+                    wide_angle_lens       // ✅ Changed from 'isWideAngle'
                 } = apiParams;
             
                 console.log("[PROCESS-IMAGE] 'angle_shift'. Using 'multiple-angles' gallery model.");
+                console.log(`[PROCESS-IMAGE] Camera params - rotation: ${rotate_right_left}, zoom: ${move_forward}, vertical: ${vertical_angle}, wide: ${wide_angle_lens}`);
             
                 // 2. Create the base request body
-                let falBody = { 
-                    image_urls: image_urls, 
+                let falBody = { 
+                    image_urls: image_urls, 
                     
-                    // Pass the parameters exactly as defined in the schema
-                    "rotate_right_left": rotation,
-                    "move_forward": zoom,
-                    "vertical_angle": vertical,
-                    "wide_angle_lens": isWideAngle,
+                    // ✅ FIXED: Use the values we just destructured
+                    "rotate_right_left": rotate_right_left || 0,
+                    "move_forward": move_forward || 0,
+                    "vertical_angle": vertical_angle || 0,
+                    "wide_angle_lens": wide_angle_lens || false,
             
-                    // We can still pass these for control
-                    "negative_prompt": negative_prompt || "",
-                    "lora_scale": 1.0, // This endpoint still accepts lora_scale
-                    
-                    // We no longer need the 'loras: [...]' array
-                    // because the endpoint handles it.
+                    // Optional parameters with good defaults
+                    "negative_prompt": negative_prompt || " ",
+                    "lora_scale": 1.0,
+                    "guidance_scale": 1,
+                    "num_inference_steps": 6,
+                    "acceleration": "regular",
+                    "enable_safety_checker": true,
+                    "output_format": "png",
+                    "num_images": 1
                 };
             
-                // 3. Conditionally add the image_size
+                // 3. Add image_size if provided
                 if (width && height) {
-                    // The schema expects an object for width/height
                     falBody.image_size = {
-                        width: width,
-                        height: height
+                        width: Math.round(width),
+                        height: Math.round(height)
                     };
-                    console.log(`[PROCESS-IMAGE] Setting image_size: ${width}x${height}`);
+                    console.log(`[PROCESS-IMAGE] Setting image_size: ${Math.round(width)}x${Math.round(height)}`);
                 }
-                 
-                // 4. Make the final API call to the ⭐️ CORRECT ENDPOINT ⭐️
+                 
+                // 4. Make the final API call
                 const falEndpoint = 'https://fal.run/fal-ai/qwen-image-edit-plus-lora-gallery/multiple-angles';
                 
                 console.log(`[PROCESS-IMAGE] Calling Fal at: ${falEndpoint}`);
                 console.log("[PROCESS-IMAGE] Body:", JSON.stringify(falBody, null, 2));
                 
                 falResult = await fetchFromFal(falEndpoint, falBody);
-                 console.log("[PROCESS-IMAGE] Fal Response:", JSON.stringify(falResult, null, 2));
-
+                 
                 break;
             }
                
