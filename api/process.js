@@ -113,35 +113,56 @@ case 'new_resize': {
                 };
                 break;
             }
-case 'angle_shift': {
-    // 1. Get all parameters from the client
-    // We only need image_urls, prompt, negative_prompt, width, and height
-    const { image_urls, prompt, negative_prompt, width, height } = apiParams;
-
-    console.log("[PROCESS-IMAGE] 'angle_shift'. Using qwen-image-edit-plus-lora.");
-
-    // 2. Create the base request body (WITHOUT the 'loras' array)
-    let falBody = { 
-        image_urls: image_urls, 
-        prompt: prompt,
-        negative_prompt: negative_prompt || "",
-    };
-
-    // 3. Conditionally add the image_size if width and height were provided
-    if (width && height) {
-        falBody.image_size = {
-            width: width,
-            height: height
-        };
-        console.log(`[PROCESS-IMAGE] Setting image_size: ${width}x${height}`);
-    }
-     
-    // 4. Make the single, final API call
-    console.log("[PROCESS-IMAGE] Calling Fal with body:", JSON.stringify(falBody, null, 2));
-    falResult = await fetchFromFal('https://fal.run/fal-ai/qwen-image-edit-plus-lora', falBody);
-     
-    break;
-}
+            case 'angle_shift': {
+                // 1. Get all parameters from the client
+                // ⭐️ MODIFIED: Extracting the new angle/positional controls ⭐️
+                const { 
+                    image_urls, 
+                    prompt, 
+                    negative_prompt, 
+                    width, 
+                    height, 
+                    rotation,      // Swift param: rotationAngle (degrees)
+                    zoom,          // Swift param: zoomLevel (0-10)
+                    vertical,      // Swift param: verticalAngle (-1 to 1)
+                    isWideAngle    // Swift param: isWideAngle (boolean)
+                } = apiParams;
+            
+                console.log("[PROCESS-IMAGE] 'angle_shift'. Using qwen-image-edit-plus-lora.");
+            
+                // 2. Create the base request body and map the Swift params to Fal API keys
+                let falBody = { 
+                    image_urls: image_urls, 
+                    // The core API call will use the explicit angle parameters, 
+                    // but we keep the prompt/negative_prompt for safety or future LoRA/control needs.
+                    prompt: prompt || "A high-quality photo.", // Default base prompt
+                    negative_prompt: negative_prompt || "",
+            
+                    // ⭐️ ADDED: Mapping the new control parameters to the Fal API schema ⭐️
+                    "rotate_right_left": rotation,
+                    "move_forward": zoom,
+                    "vertical_angle": vertical,
+                    "wide_angle_lens": isWideAngle,
+                    
+                    // Use a fixed lora_scale of 1 (as per Fal schema default)
+                    "lora_scale": 1.0, 
+                };
+            
+                // 3. Conditionally add the image_size if width and height were provided
+                if (width && height) {
+                    falBody.image_size = {
+                        width: width,
+                        height: height
+                    };
+                    console.log(`[PROCESS-IMAGE] Setting image_size: ${width}x${height}`);
+                }
+                 
+                // 4. Make the single, final API call
+                console.log("[PROCESS-IMAGE] Calling Fal with body:", JSON.stringify(falBody, null, 2));
+                falResult = await fetchFromFal('https://fal.run/fal-ai/qwen-image-edit-plus-lora-gallery/multiple-angles', falBody);
+                 
+                break;
+            }
                
             
             case 'colorize': {
