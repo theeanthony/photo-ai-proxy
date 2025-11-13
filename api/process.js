@@ -130,6 +130,9 @@ case 'generic_restore': {
     
     ]);
     
+    // 🐞 DEBUG: Log the full results from both models
+    console.log('Banana Result:', JSON.stringify(bananaResult, null, 2));
+    console.log('Seedream Result:', JSON.stringify(seedreamResult, null, 2));
     
     falResult = {
     
