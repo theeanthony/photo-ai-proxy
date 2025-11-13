@@ -78,46 +78,74 @@ case 'new_resize': {
     break;
 }
 case 'generic_restore': {
+
     // ✅ MODIFIED: Extract width and height
+    
     const { image_url, banana_prompt, seedream_prompt, width, height } = apiParams;
-
-    // 🐞 DEBUG: Log the sizes being passed in from parameters
-    console.log('Passing parameters to generic_restore:', { width, height });
-
+    
+    
     const [bananaResult, seedreamResult] = await Promise.all([
-
-        fetchFromFal('https://fal.run/fal-ai/nano-banana/edit', {
-            image_urls: [image_url],
-            prompt: banana_prompt || "repair photo"
-        }),
-
-        fetchFromFal('https://fal.ai/bytedance/seedream/v4/edit', {
-            image_urls: [image_url],
-            prompt: seedream_prompt || "repair photo",
-            image_size: { // <-- Pass an object named "image_size"
-                width: width,
-                height: height
-            }
-        })
+    
+    
+    
+    fetchFromFal('https://fal.run/fal-ai/nano-banana/edit', {
+    
+    
+    
+    image_urls: [image_url],
+    
+    
+    
+    prompt: banana_prompt || "repair photo"
+    
+    
+    
+    }),
+    
+    
+    
+    fetchFromFal('https://fal.run/fal-ai/bytedance/seedream/v4/edit', {
+    
+    
+    
+    image_urls: [image_url],
+    
+    
+    
+    prompt: seedream_prompt || "repair photo",
+    
+    image_urls: [image_url],
+    
+    prompt: seedream_prompt || "repair photo",
+    
+    image_size: { // <-- Pass an object named "image_size"
+    
+    width: width,
+    
+    height: height
+    
+    }
+    
+    })
+    
     ]);
-
-    // 🐞 DEBUG: Log the full results from both models
-    console.log('Banana Result:', JSON.stringify(bananaResult, null, 2));
-    console.log('Seedream Result:', JSON.stringify(seedreamResult, null, 2));
-
-    // Note: You'll need to inspect the logged 'bananaResult' and 'seedreamResult'
-    // objects in your console to find where (or if) they return image dimensions.
-    // For example, if the result has a structure like `result.images[0].width`,
-    // you would log that specifically.
-
+    
+    
     falResult = {
-        images: [bananaResult.images[0], seedreamResult.images[0]].filter(Boolean),
-        timings: {
-            totalTime: (bananaResult.timings?.totalTime || 0) + (seedreamResult.timings?.totalTime || 0)
-        }
+    
+    images: [bananaResult.images[0], seedreamResult.images[0]].filter(Boolean),
+    
+    timings: {
+    
+    totalTime: (bananaResult.timings?.totalTime || 0) + (seedreamResult.timings?.totalTime || 0)
+    
+    }
+    
     };
+    
     break;
-}
+    
+    }
             case 'angle_shift': {
                 // 1. ✅ FIXED: Destructure using the ACTUAL key names from Swift
                 const { 
