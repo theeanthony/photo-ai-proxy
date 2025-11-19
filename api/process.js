@@ -481,29 +481,39 @@ case 'ai_resize': {
     break;
 }
 
+// In process.js
+
 case 'advanced_restore': {
-    // ✅ Extract width and height from apiParams (Must be sent from Swift)
     const { image_url, fix_colors, remove_scratches, enhance_resolution, width, height } = apiParams;
-    
-    // ✅ Calculate the correct aspect ratio object
     const aspectRatioObj = getClosestAspectRatio(width, height);
 
-    console.log(`[PROCESS-IMAGE] 'advanced_restore'. Target Ratio: ${width}/${height}. Selected: ${JSON.stringify(aspectRatioObj)}`);
-    
+    // 1. Call the API
     falResult = await fetchFromFal('https://fal.run/fal-ai/image-apps-v2/photo-restoration', {
         image_url: image_url,
         fix_colors: fix_colors ?? true,
         remove_scratches: remove_scratches ?? true,
         enhance_resolution: enhance_resolution ?? true,
-        aspect_ratio: aspectRatioObj // ✅ Sending correct object
+        aspect_ratio: aspectRatioObj
     });
-    
+
+    // 2. Standardize the Output
+    // We force the result to look like a standard FalFile so Swift is happy
     if (falResult.image) {
-         falResult = { images: [falResult.image], timings: falResult.timings };
+        falResult = {
+            images: [{
+                url: falResult.image.url,
+                width: falResult.image.width,
+                height: falResult.image.height,
+                // Inject the missing fields required by Swift:
+                content_type: "image/jpeg",
+                file_name: `restored_${Date.now()}.jpg`,
+                file_size: 0 
+            }],
+            timings: falResult.timings
+        };
     }
     break;
 }
-
 // MARK: - Module II: Creative Enhancement/Upscale (PDF Page 8)
 // Uses: fal-ai/flux-vision-upscaler
 case 'flux_upscale': {
