@@ -481,6 +481,50 @@ case 'ai_resize': {
     break;
 }
 
+case 'advanced_restore': {
+    const { image_url, fix_colors, remove_scratches, enhance_resolution } = apiParams;
+    
+    console.log("[PROCESS-IMAGE] 'advanced_restore' using image-apps-v2");
+    
+    falResult = await fetchFromFal('https://fal.run/fal-ai/image-apps-v2/photo-restoration', {
+        image_url: image_url,
+        fix_colors: fix_colors ?? true,
+        remove_scratches: remove_scratches ?? true,
+        enhance_resolution: enhance_resolution ?? true,
+        aspect_ratio: "same" // Keep original aspect ratio
+    });
+    
+    // Standardize response
+    if (falResult.image) {
+         falResult = { images: [falResult.image], timings: falResult.timings };
+    }
+    break;
+}
+
+// MARK: - Module II: Creative Enhancement/Upscale (PDF Page 8)
+// Uses: fal-ai/flux-vision-upscaler
+case 'flux_upscale': {
+    const { image_url, upscale_factor, creativity, guidance_scale } = apiParams;
+    
+    console.log(`[PROCESS-IMAGE] 'flux_upscale'. Factor: ${upscale_factor}, Creativity: ${creativity}`);
+    
+    // According to research, Flux Vision Upscaler is best for "Creative" upscaling
+    // and acts as Sharpen/Denoise when factor is 1.0 and creativity is low.
+    falResult = await fetchFromFal('https://fal.run/fal-ai/flux-vision-upscaler', {
+        image_url: image_url,
+        upscale_factor: upscale_factor || 2.0,
+        creativity: creativity || 0.35, // Default "Balanced"
+        guidance_scale: guidance_scale || 2.0,
+        active_tags: ["masterpiece", "high fidelity", "highly detailed"], // Internal prompt helper
+        enable_safety_checker: true
+    });
+    
+    if (falResult.image) {
+         falResult = { images: [falResult.image], timings: falResult.timings };
+    }
+    break;
+}
+
             case 'upscale':
                 console.log("we made it here to upsacle in api")
                 falResult = await fetchFromFal('https://fal.run/fal-ai/topaz/upscale/image', {
