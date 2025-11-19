@@ -482,19 +482,22 @@ case 'ai_resize': {
 }
 
 case 'advanced_restore': {
-    const { image_url, fix_colors, remove_scratches, enhance_resolution } = apiParams;
+    // ✅ Extract width and height from apiParams (Must be sent from Swift)
+    const { image_url, fix_colors, remove_scratches, enhance_resolution, width, height } = apiParams;
     
-    console.log("[PROCESS-IMAGE] 'advanced_restore' using image-apps-v2");
+    // ✅ Calculate the correct aspect ratio object
+    const aspectRatioObj = getClosestAspectRatio(width, height);
+
+    console.log(`[PROCESS-IMAGE] 'advanced_restore'. Target Ratio: ${width}/${height}. Selected: ${JSON.stringify(aspectRatioObj)}`);
     
     falResult = await fetchFromFal('https://fal.run/fal-ai/image-apps-v2/photo-restoration', {
         image_url: image_url,
         fix_colors: fix_colors ?? true,
         remove_scratches: remove_scratches ?? true,
         enhance_resolution: enhance_resolution ?? true,
-        aspect_ratio: "same" // Keep original aspect ratio
+        aspect_ratio: aspectRatioObj // ✅ Sending correct object
     });
     
-    // Standardize response
     if (falResult.image) {
          falResult = { images: [falResult.image], timings: falResult.timings };
     }
@@ -560,3 +563,24 @@ case 'flux_upscale': {
     }
 };
 
+
+
+function getClosestAspectRatio(width, height) {
+    if (!width || !height) return { ratio: "4:3" }; // Fallback if dimensions missing
+
+    const targetRatio = width / height;
+    const supportedRatios = [
+        { str: "16:9", val: 16/9 },
+        { str: "4:3",  val: 4/3 },
+        { str: "1:1",  val: 1.0 },
+        { str: "3:4",  val: 3/4 },
+        { str: "9:16", val: 9/16 }
+    ];
+
+    // Find the ratio with the smallest difference
+    const closest = supportedRatios.reduce((prev, curr) => {
+        return (Math.abs(curr.val - targetRatio) < Math.abs(prev.val - targetRatio)) ? curr : prev;
+    });
+
+    return { ratio: closest.str }; // ✅ Returns object: { ratio: "16:9" }
+}
