@@ -538,6 +538,25 @@ case 'flux_upscale': {
     break;
 }
 
+
+case 'creative_upscale': {
+    // 1. Extract the params (Just prompt and image for now)
+    const { image_url, prompt } = apiParams;
+
+    console.log(`[PROCESS-IMAGE] 'creative_upscale' using nano-banana.`);
+    console.log(`[PROCESS-IMAGE] Prompt: ${prompt}`);
+
+    // 2. Call Nano-Banana (an instruction-based editor)
+    // It takes 'image_urls' (plural) and a 'prompt'.
+    falResult = await fetchFromFal('https://fal.run/fal-ai/nano-banana-pro/edit', {
+        image_urls: [image_url], 
+        prompt: prompt
+    });
+
+    // 3. No extra formatting needed, Fal's default response works with your Swift decoder
+    break;
+}
+
             case 'upscale':
                 console.log("we made it here to upsacle in api")
                 falResult = await fetchFromFal('https://fal.run/fal-ai/topaz/upscale/image', {
