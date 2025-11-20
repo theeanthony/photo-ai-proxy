@@ -1,98 +1,89 @@
-// You may need to install these: npm install node-fetch
+// npm install node-fetch form-data
 const fetch = require('node-fetch');
+const FormData = require('form-data'); // Required for Node environments
 const TOPAZ_API_KEY = process.env.TOPAZ_API_KEY;
 const BASE_URL = "https://api.topazlabs.com/image/v1";
 
-// Disable Vercel's default body parsing so we can stream the multipart data directly
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
-
 module.exports = async (req, res) => {
-    // 1. Security Check
-    if (!TOPAZ_API_KEY) {
-        return res.status(500).json({ error: "Server Config Error: Missing API Key." });
-    }
+    if (!TOPAZ_API_KEY) return res.status(500).json({ error: "Missing API Key" });
 
-    // 2. Handle GET Requests (Status & Download)
-    if (req.method === 'GET') {
-        const { processId, action } = req.query; 
+    // 1. Handle POST (Start Job)
+    if (req.method === 'POST') {
+        // We receive JSON from iOS (URL + Params), which is fine.
+        // BUT we must convert it to Multipart/Form-Data for Topaz.
+        const { endpoint, source_url, ...otherParams } = req.body;
 
-        if (!processId) return res.status(400).json({ error: "Missing processId" });
+        if (!endpoint || !source_url) {
+            return res.status(400).json({ error: "Missing 'endpoint' or 'source_url'" });
+        }
 
-        // FIX: The report defines the status endpoint as "status", not "processing" [cite: 403]
-        // FIX: The report defines the download endpoint as "download" [cite: 421]
-        const endpointType = action === 'download' ? 'download' : 'status';
-        const topazUrl = `${BASE_URL}/${endpointType}/${processId}`;
-        
         try {
-            const response = await fetch(topazUrl, {
-                method: 'GET',
-                headers: { 
-                    'X-API-Key': TOPAZ_API_KEY,
-                    'Content-Type': 'application/json'
-                }
-            });
+            // ERROR PREVENTION: The report says "Generative" models (Restore)
+            // reject parameters like 'face_enhancement'. We must filter them here or in iOS. 
             
-            // If it's a download, we might want to pipe the image data back directly
-            if (action === 'download' && response.status === 200) {
-                 // If Topaz returns the image file directly (rare but possible) or a JSON with URL
-                 const contentType = response.headers.get("content-type");
-                 if (contentType.includes("image")) {
-                     res.setHeader("Content-Type", contentType);
-                     response.body.pipe(res);
-                     return;
-                 }
+            // 1. Create FormData Object [cite: 7]
+            const form = new FormData();
+            form.append('source_url', source_url);
+            
+            // 2. Append other parameters as strings
+            for (const [key, value] of Object.entries(otherParams)) {
+                // Convert booleans/numbers to strings explicitly 
+                form.append(key, String(value));
             }
 
-            const data = await response.json();
-            return res.status(response.status).json(data);
-
-        } catch (error) {
-            return res.status(500).json({ error: error.message });
-        }
-    }
-
-    // 3. Handle POST Requests (Start Job)
-    if (req.method === 'POST') {
-        // FIX: Do not use JSON.stringify.
-        // The iOS app is sending Multipart Form Data[cite: 347].
-        // We must pipe the incoming request stream directly to Topaz.
-        
-        // We need to extract the specific endpoint (e.g., 'enhance', 'sharpen') from the query params
-        // because we can't easily read the body without consuming the stream.
-        const { endpoint } = req.query; 
-
-        if (!endpoint) {
-            return res.status(400).json({ error: "Missing 'endpoint' query param." });
-        }
-
-        try {
-            const topazUrl = `${BASE_URL}/${endpoint}`;
-            
-            // Forward the headers (specifically Content-Type with the boundary) from iOS
-            const headers = {
-                'X-API-Key': TOPAZ_API_KEY,
-                'Content-Type': req.headers['content-type'], 
-                'Accept': 'application/json'
-            };
-
-            const response = await fetch(topazUrl, {
+            // 3. Send to Topaz
+            // CRITICAL: Do NOT set 'Content-Type' manually! 
+            // The form-data library will generate the correct boundary header. [cite: 6]
+            const response = await fetch(`${BASE_URL}/${endpoint}`, {
                 method: 'POST',
-                headers: headers,
-                body: req // Pipe the incoming iOS stream directly to Topaz
+                headers: {
+                    'X-API-Key': TOPAZ_API_KEY,
+                    'Accept': 'application/json',
+                    ...form.getHeaders() // This adds the multipart boundary automatically
+                },
+                body: form
             });
 
             const data = await response.json();
-            return res.status(response.status).json(data);
+            
+            if (!response.ok) {
+                 console.error("Topaz Error:", data);
+                 return res.status(response.status).json(data);
+            }
+
+            return res.status(200).json(data);
 
         } catch (error) {
-            console.error(`[Topaz Proxy] Exception:`, error);
+            console.error("Proxy Exception:", error);
             return res.status(500).json({ error: error.message });
         }
     }
 
-    return res.status(405).send("Method Not Allowed");
+    // 2. Handle GET (Status/Download) - Keeps working as before
+    if (req.method === 'GET') {
+        const { processId, action } = req.query;
+        const endpointType = action === 'download' ? 'download' : 'status';
+        const url = `${BASE_URL}/${endpointType}/${processId}`;
+        
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: { 
+                'X-API-Key': TOPAZ_API_KEY,
+                'Accept': 'application/json'
+            }
+        });
+        
+        // If download, pipe the image
+        if (action === 'download' && response.ok) {
+             const contentType = response.headers.get("content-type");
+             if (contentType && contentType.includes("image")) {
+                 res.setHeader("Content-Type", contentType);
+                 response.body.pipe(res);
+                 return;
+             }
+        }
+
+        const data = await response.json();
+        return res.status(response.status).json(data);
+    }
 };
