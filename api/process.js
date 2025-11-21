@@ -88,7 +88,7 @@ case 'generic_restore': {
     
     
     
-    fetchFromFal('https://fal.run/fal-ai/nano-banana/edit', {
+    fetchFromFal('https://fal.run/fal-ai/nano-banana-pro/edit', {
     
     
     
@@ -234,7 +234,7 @@ case 'generic_restore': {
             }
             case 'colorize': {
                 const { image_url, prompt } = apiParams;
-                falResult = await fetchFromFal('https://fal.run/fal-ai/nano-banana/edit', { 
+                falResult = await fetchFromFal('https://fal.run/fal-ai/nano-banana-pro/edit', { 
                     image_urls: [image_url], 
                     prompt: prompt || "colorize this photo, add natural and realistic colors" 
                 });
@@ -266,7 +266,7 @@ case 'generic_restore': {
                 //     prompt: prompt
                 // });
 
-                falResult = await fetchFromFal('https://fal.run/fal-ai/nano-banana/edit', {
+                falResult = await fetchFromFal('https://fal.run/fal-ai/nano-banana-pro/edit', {
                     image_urls: [image_url],
                     prompt: prompt
                 });
@@ -331,7 +331,7 @@ case 'generic_restore': {
 
                 console.log("[PROCESS-IMAGE] Unmasked 'textual_edit'. Using nano-banana.");
                 
-                falResult = await fetchFromFal('https://fal.run/fal-ai/nano-banana/edit', {
+                falResult = await fetchFromFal('https://fal.run/fal-ai/nano-banana-pro/edit', {
                     image_urls: [image_url],
                     prompt: prompt
                 });
@@ -572,7 +572,7 @@ case 'creative_upscale': {
             case 'ai_color_grade':
             case 'trend': {
                 const { image_urls, prompt } = apiParams;
-                 falResult = await fetchFromFal('https://fal.run/fal-ai/nano-banana/edit', { 
+                 falResult = await fetchFromFal('https://fal.run/fal-ai/nano-banana-pro/edit', { 
                     image_urls: image_urls, 
                     prompt: prompt
                 });
