@@ -45,12 +45,11 @@ const submitToFalQueue = async (url, body) => {
 };
 
 const checkFalQueueStatus = async (requestId) => {
-    // 🔴 OLD (Broken - Causes 405):
-    // const statusUrl = `https://queue.fal.run/fal-ai/nano-banana-pro/edit/requests/${requestId}`;
-    
-    // ✅ NEW (Fixed):
-    // Append "/status" to the end of the URL
-    const statusUrl = `https://queue.fal.run/fal-ai/nano-banana-pro/edit/requests/${requestId}/status`;
+    // 🔴 OLD (Incorrect - included '/edit'):
+    // const statusUrl = `https://queue.fal.run/fal-ai/nano-banana-pro/edit/requests/${requestId}/status`;
+
+    // ✅ FIXED: Remove '/edit'. The status lives at the model root.
+    const statusUrl = `https://queue.fal.run/fal-ai/nano-banana-pro/requests/${requestId}/status`;
     
     console.log(`[QUEUE] Checking status: ${statusUrl}`);
     const response = await fetch(statusUrl, {
@@ -62,8 +61,7 @@ const checkFalQueueStatus = async (requestId) => {
     });
 
     if (!response.ok) {
-        // Better error logging
-        const txt = await response.text(); 
+        const txt = await response.text();
         throw new Error(`Fal Status Check Failed (${response.status}): ${txt}`);
     }
     return response.json();
