@@ -45,7 +45,11 @@ const submitToFalQueue = async (url, body) => {
 };
 
 const checkFalQueueStatus = async (requestId) => {
-    // ✅ FIX: Add '/status' to the end of the URL
+    // 🔴 OLD (Broken - Causes 405):
+    // const statusUrl = `https://queue.fal.run/fal-ai/nano-banana-pro/edit/requests/${requestId}`;
+    
+    // ✅ NEW (Fixed):
+    // Append "/status" to the end of the URL
     const statusUrl = `https://queue.fal.run/fal-ai/nano-banana-pro/edit/requests/${requestId}/status`;
     
     console.log(`[QUEUE] Checking status: ${statusUrl}`);
@@ -58,7 +62,9 @@ const checkFalQueueStatus = async (requestId) => {
     });
 
     if (!response.ok) {
-        throw new Error(`Fal Status Check Failed: ${response.status}`);
+        // Better error logging
+        const txt = await response.text(); 
+        throw new Error(`Fal Status Check Failed (${response.status}): ${txt}`);
     }
     return response.json();
 };
