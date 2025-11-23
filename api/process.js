@@ -45,9 +45,8 @@ const submitToFalQueue = async (url, body) => {
 };
 
 const checkFalQueueStatus = async (requestId) => {
-    // We check the specific model's queue endpoint
-    // Note: We assume nano-banana-pro for now, as per your creative_upscale
-    const statusUrl = `https://queue.fal.run/fal-ai/nano-banana-pro/edit/requests/${requestId}`;
+    // ✅ FIX: Add '/status' to the end of the URL
+    const statusUrl = `https://queue.fal.run/fal-ai/nano-banana-pro/edit/requests/${requestId}/status`;
     
     console.log(`[QUEUE] Checking status: ${statusUrl}`);
     const response = await fetch(statusUrl, {
