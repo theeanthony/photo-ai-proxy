@@ -26,6 +26,43 @@ const fetchFromFal = async (url, body) => {
     }
     return response.json();
 };
+const submitToFalQueue = async (url, body) => {
+    console.log(`[QUEUE] Submitting to: ${url}`);
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: { 
+            'Authorization': `Key ${FAL_API_KEY}`, 
+            'Content-Type': 'application/json' 
+        },
+        body: JSON.stringify(body)
+    });
+
+    if (!response.ok) {
+        const txt = await response.text();
+        throw new Error(`Fal Queue Submit Failed (${response.status}): ${txt}`);
+    }
+    return response.json(); // Returns { request_id: "..." }
+};
+
+const checkFalQueueStatus = async (requestId) => {
+    // We check the specific model's queue endpoint
+    // Note: We assume nano-banana-pro for now, as per your creative_upscale
+    const statusUrl = `https://queue.fal.run/fal-ai/nano-banana-pro/edit/requests/${requestId}`;
+    
+    console.log(`[QUEUE] Checking status: ${statusUrl}`);
+    const response = await fetch(statusUrl, {
+        method: 'GET',
+        headers: { 
+            'Authorization': `Key ${FAL_API_KEY}`, 
+            'Content-Type': 'application/json' 
+        }
+    });
+
+    if (!response.ok) {
+        throw new Error(`Fal Status Check Failed: ${response.status}`);
+    }
+    return response.json();
+};
 
 
 // --- Main Serverless Function Handler ---
@@ -535,6 +572,27 @@ case 'flux_upscale': {
     if (falResult.image) {
          falResult = { images: [falResult.image], timings: falResult.timings };
     }
+    break;
+}
+case 'creative_upscale_async': {
+    const { image_url, prompt } = apiParams;
+    
+    // Use the QUEUE URL (https://queue.fal.run/...)
+    falResult = await submitToFalQueue('https://queue.fal.run/fal-ai/nano-banana-pro/edit', {
+        image_urls: [image_url],
+        prompt: prompt
+    });
+    // Expected falResult: { request_id: "123-abc...", ... }
+    break;
+}
+
+// ✅ NEW STATUS CHECKER
+case 'fal_queue_status': {
+    const { request_id } = apiParams;
+    if (!request_id) throw new Error("Missing request_id for status check");
+    
+    falResult = await checkFalQueueStatus(request_id);
+    // Returns Fal status JSON (status: "IN_QUEUE", "COMPLETED", etc.)
     break;
 }
 
