@@ -510,7 +510,6 @@ case 'video': {
                 const magicPrompt = "A high-quality, realistic photograph. Seamlessly extended scenery.";
             
                 // 3. Call Ideogram V3 Reframe
-                // Note: We use 'reframe' endpoint, NOT 'edit' or 'fill'.
                 falResult = await fetchFromFal('https://fal.run/fal-ai/ideogram/v3/reframe', {
                     image_url: image_url,
                     aspect_ratio: targetRatio, 
