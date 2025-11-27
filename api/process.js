@@ -526,7 +526,7 @@ case 'video': {
                 console.log("🎨 FINAL PROMPT SENT TO FLUX:", creativePrompt);
             
                 // --- STEP 3: Generate with Flux Pro Fill ---
-                falResult = await fetchFromFal('https://fal.run/fal-ai/flux-pro/v1/fill-finetuned', {
+                falResult = await fetchFromFal('https://fal.run/fal-ai/flux-pro/v1/fill', {
                     image_url: image_url,
                     mask_url: mask_url,
                     prompt: creativePrompt,
