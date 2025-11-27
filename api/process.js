@@ -488,61 +488,46 @@ case 'video': {
             }
 
             case 'ai_resize': {
-                const { image_url, expansion_direction } = apiParams;
+                // ⚠️ REVERT SWIFT: Use 'performAIResize' which sends { image_url, mask_url }
+                const { image_url, mask_url } = apiParams;
             
-                // --- STEP 1: ASK MOONDREAM2 TO SEE THE IMAGE ---
-                // Endpoint: fal-ai/moondream2 (Permissive license, safe for commercial use)
+                // --- STEP 1: Vision Check (Moondream) ---
+                // We let the AI see the image so it knows WHAT to extend (e.g., "yellow brick road")
                 let visionDescription = "";
-                
                 try {
                     const visionResult = await fetchFromFal('https://fal.run/fal-ai/moondream2', {
                         image_url: image_url,
-                        // Moondream is very responsive to simple prompts
-                        prompt: "Describe this image in detail, focusing on the background texture, lighting, and materials. Be specific." 
+                        prompt: "Describe the textures and scenery in this image in extreme detail. Mention materials (e.g., brick, asphalt, grass), lighting, and colors."
                     });
                     
-                    // Moondream usually returns: { outputs: ["Description text..."] } 
-                    // We handle both array and string cases just to be safe.
+                    // Handle varied outputs
                     if (visionResult.outputs && Array.isArray(visionResult.outputs)) {
                          visionDescription = visionResult.outputs[0];
-                    } else if (visionResult.output) {
-                         visionDescription = visionResult.output;
                     } else {
-                         // Fallback if schema changes
-                         console.warn("Unexpected Moondream response format", visionResult);
-                         visionDescription = "A high-quality, realistic photograph with complex background details.";
+                         visionDescription = visionResult.output || "Detailed scenery";
                     }
-                    
-                    console.log("👁️ Moondream Saw:", visionDescription);
-            
-                } catch (error) {
-                    console.warn("Vision step failed, falling back to generic prompt.", error);
-                    visionDescription = "A high-quality, realistic photograph with complex background details.";
+                    console.log("👁️ Vision Context:", visionDescription);
+                } catch (err) {
+                    visionDescription = "A high-quality, realistic photograph.";
                 }
             
-                // --- STEP 2: BUILD THE SMART PROMPT ---
-                // (This part remains the same)
-                
-                // 1. Map direction to size
-                let targetSize = "square_hd"; 
-                if (expansion_direction === 'vertical') {
-                    targetSize = "portrait_16_9"; 
-                } else if (expansion_direction === 'horizontal') {
-                    targetSize = "landscape_16_9"; 
-                }
+                // --- STEP 2: The "Texture" Prompt ---
+                // We explicitly force Flux to matching the description and avoid "smooth" fills.
+                const creativePrompt = 
+                    `Seamlessly outpaint the image. Extend the scene naturally based on this context: "${visionDescription}". ` +
+                    "High fidelity, matching grain, matching lighting, intricate details. " +
+                    "Ensure continuous patterns (e.g. continue floor tiles, road markings, or foliage). " +
+                    "Photorealistic, 8k, highly detailed.";
             
-                // 2. Construct the "Magic Prompt"
-                const magicPrompt = 
-                    `A wide-angle shot extending the following scene: "${visionDescription}". ` +
-                    "Seamlessly continue the textures, lighting, and environment from the description. " +
-                    "High resolution, intricate details, photorealistic, no blurring, no solid colors.";
-            
-                // --- STEP 3: CALL IDEOGRAM REFRAME ---
-                falResult = await fetchFromFal('https://fal.run/fal-ai/ideogram/v3/reframe', {
+                // --- STEP 3: Generate with Flux Pro Fill ---
+                // This model is superior to Ideogram for outpainting textures.
+                falResult = await fetchFromFal('https://fal.run/fal-ai/flux-pro/v1/fill', {
                     image_url: image_url,
-                    image_size: targetSize, 
-                    prompt: magicPrompt, 
-                    style: "GENERAL" 
+                    mask_url: mask_url,
+                    prompt: creativePrompt,
+                    guidance_scale: 30, // Higher guidance forces the model to listen to the prompt (hallucinate bricks)
+                    strength: 1.0,      // 1.0 = Complete replacement of masked area
+                    steps: 28           // Standard for high quality
                 });
                 
                 break;
