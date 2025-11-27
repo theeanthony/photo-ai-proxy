@@ -490,7 +490,40 @@ case 'video': {
             case 'ai_resize': {
                 const { image_url, expansion_direction } = apiParams;
             
-                // 1. Map direction to 'image_size' Enum
+                // --- STEP 1: ASK MOONDREAM2 TO SEE THE IMAGE ---
+                // Endpoint: fal-ai/moondream2 (Permissive license, safe for commercial use)
+                let visionDescription = "";
+                
+                try {
+                    const visionResult = await fetchFromFal('https://fal.run/fal-ai/moondream2', {
+                        image_url: image_url,
+                        // Moondream is very responsive to simple prompts
+                        prompt: "Describe this image in detail, focusing on the background texture, lighting, and materials. Be specific." 
+                    });
+                    
+                    // Moondream usually returns: { outputs: ["Description text..."] } 
+                    // We handle both array and string cases just to be safe.
+                    if (visionResult.outputs && Array.isArray(visionResult.outputs)) {
+                         visionDescription = visionResult.outputs[0];
+                    } else if (visionResult.output) {
+                         visionDescription = visionResult.output;
+                    } else {
+                         // Fallback if schema changes
+                         console.warn("Unexpected Moondream response format", visionResult);
+                         visionDescription = "A high-quality, realistic photograph with complex background details.";
+                    }
+                    
+                    console.log("👁️ Moondream Saw:", visionDescription);
+            
+                } catch (error) {
+                    console.warn("Vision step failed, falling back to generic prompt.", error);
+                    visionDescription = "A high-quality, realistic photograph with complex background details.";
+                }
+            
+                // --- STEP 2: BUILD THE SMART PROMPT ---
+                // (This part remains the same)
+                
+                // 1. Map direction to size
                 let targetSize = "square_hd"; 
                 if (expansion_direction === 'vertical') {
                     targetSize = "portrait_16_9"; 
@@ -498,22 +531,18 @@ case 'video': {
                     targetSize = "landscape_16_9"; 
                 }
             
-                // 2. "Creative" Prompting
-                // We remove "realistic" (which triggers blur) and add "intricate details".
-                // We explicitly ask for "complex background" to prevent solid fills.
+                // 2. Construct the "Magic Prompt"
                 const magicPrompt = 
-                    "A wide-angle, high-resolution photograph. " +
-                    "The scene extends naturally with intricate details, complex background elements, and environmental context. " +
-                    "Seamlessly continue existing textures and patterns. " +
-                    "No solid colors, no blurring, fully detailed scenery.";
+                    `A wide-angle shot extending the following scene: "${visionDescription}". ` +
+                    "Seamlessly continue the textures, lighting, and environment from the description. " +
+                    "High resolution, intricate details, photorealistic, no blurring, no solid colors.";
             
-                // 3. Call Ideogram V3 Reframe
+                // --- STEP 3: CALL IDEOGRAM REFRAME ---
                 falResult = await fetchFromFal('https://fal.run/fal-ai/ideogram/v3/reframe', {
                     image_url: image_url,
                     image_size: targetSize, 
                     prompt: magicPrompt, 
-                    style: "GENERAL" // ✅ CHANGED: 'GENERAL' allows more creative hallucination than 'REALISTIC'
-                    // rendering_speed: "QUALITY" // ✅ OPTIONAL: If you have budget, 'QUALITY' forces more detail check.
+                    style: "GENERAL" 
                 });
                 
                 break;
