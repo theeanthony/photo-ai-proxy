@@ -487,36 +487,41 @@ case 'video': {
                 return res.status(202).json({ message: "Training job submitted." });
             }
 
-            case 'ai_resize': {
-                const { image_url, expansion_direction } = apiParams;
-            
-                // 1. Map direction to the required 'image_size' Enum
-                // Valid values: "square_hd", "square", "portrait_4_3", "portrait_16_9", "landscape_4_3", "landscape_16_9"
-                let targetSize = "square_hd"; 
-                
-                if (expansion_direction === 'vertical') {
-                    targetSize = "portrait_16_9"; // 9:16 Aspect Ratio
-                } else if (expansion_direction === 'horizontal') {
-                    targetSize = "landscape_16_9"; // 16:9 Aspect Ratio
-                } else {
-                    targetSize = "square_hd";     // 1:1 Aspect Ratio
-                }
-            
-                // 2. Simplified Prompt
-                const magicPrompt = "A high-quality, realistic photograph. Seamlessly extended scenery.";
-            
-                // 3. Call Ideogram V3 Reframe
-                // ✅ FIX 1: Use 'image_size' instead of 'aspect_ratio'
-                // ✅ FIX 2: Use "REALISTIC" (uppercase) for the style
-                falResult = await fetchFromFal('https://fal.run/fal-ai/ideogram/v3/reframe', {
-                    image_url: image_url,
-                    image_size: targetSize, 
-                    prompt: magicPrompt,
-                    style: "REALISTIC" 
-                });
-                
-                break;
-            }
+case 'ai_resize': {
+    const { image_url, mask_url, expansion_direction } = apiParams;
+    
+    // Build a smarter prompt based on expansion direction
+    let contextualPrompt = "A high-quality, realistic photograph. ";
+    
+    if (expansion_direction === 'vertical') {
+        contextualPrompt += "Naturally extend the sky upward and the ground/floor downward. " +
+            "Maintain the horizon line and perspective. " +
+            "Continue existing patterns seamlessly (clouds, terrain, flooring). ";
+    } else if (expansion_direction === 'horizontal') {
+        contextualPrompt += "Naturally extend the scene to the left and right sides. " +
+            "Maintain perspective and scale of existing elements. " +
+            "Continue architectural or environmental patterns seamlessly. ";
+    } else {
+        contextualPrompt += "Extend the scene in all directions naturally. " +
+            "Maintain perspective, lighting, and existing scene elements. ";
+    }
+    
+    contextualPrompt += "Match the exact lighting, color palette, and style of the original photo. " +
+        "Fill masked areas with contextually appropriate content.";
+    
+    falResult = await fetchFromFal('https://fal.run/fal-ai/flux-pro/v1/fill', { 
+        image_url: image_url,
+        mask_url: mask_url,
+        prompt: contextualPrompt,
+        negative_prompt: "repetition, repeating patterns, collage, stacked images, " +
+            "duplicated objects, duplicated subjects, frames, borders, incoherent, " +
+            "disjointed, multiple people, tiling, artifacts, mirroring, " +
+            "unrelated scenery, random objects, unnatural transitions"
+    });
+    break;
+}
+
+
 
 // In process.js
 
