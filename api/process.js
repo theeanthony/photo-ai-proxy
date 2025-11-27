@@ -490,31 +490,29 @@ case 'video': {
             case 'ai_resize': {
                 const { image_url, expansion_direction } = apiParams;
             
-                // 1. Map direction to a target aspect ratio
-                // Ideogram Reframe works by fitting your image into a NEW aspect ratio.
-                // If you want to expand horizontally, pick a wide ratio (e.g., 16:9).
-                // If you want to expand vertically, pick a tall ratio (e.g., 9:16).
-                let targetRatio = "1:1"; // Default
+                // 1. Map direction to the required 'image_size' Enum
+                // Valid values: "square_hd", "square", "portrait_4_3", "portrait_16_9", "landscape_4_3", "landscape_16_9"
+                let targetSize = "square_hd"; 
                 
                 if (expansion_direction === 'vertical') {
-                    targetRatio = "9:16"; // Common for Stories/TikTok
+                    targetSize = "portrait_16_9"; // 9:16 Aspect Ratio
                 } else if (expansion_direction === 'horizontal') {
-                    targetRatio = "16:9"; // Common for YouTube/Desktop
+                    targetSize = "landscape_16_9"; // 16:9 Aspect Ratio
                 } else {
-                    targetRatio = "1:1";  // Square (or choose 4:3 for balanced expansion)
+                    targetSize = "square_hd";     // 1:1 Aspect Ratio
                 }
             
-                // 2. Simplified Prompt (Optional)
-                // Ideogram is context-aware, so you don't need to describe the "extend" logic.
-                // Just describe the scene style if you want to ensure specific aesthetics.
+                // 2. Simplified Prompt
                 const magicPrompt = "A high-quality, realistic photograph. Seamlessly extended scenery.";
             
                 // 3. Call Ideogram V3 Reframe
+                // ✅ FIX 1: Use 'image_size' instead of 'aspect_ratio'
+                // ✅ FIX 2: Use "REALISTIC" (uppercase) for the style
                 falResult = await fetchFromFal('https://fal.run/fal-ai/ideogram/v3/reframe', {
                     image_url: image_url,
-                    aspect_ratio: targetRatio, 
+                    image_size: targetSize, 
                     prompt: magicPrompt,
-                    style: "realism" // Forces photorealistic output (optional)
+                    style: "REALISTIC" 
                 });
                 
                 break;
