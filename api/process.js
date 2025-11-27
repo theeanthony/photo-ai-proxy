@@ -329,18 +329,22 @@ case 'generic_restore': {
                 const allImageUrls = [image_url, ...style_urls];
                 
                 console.log(`[PROCESS-IMAGE] Sending ${allImageUrls.length} total images to Fal.`);
-
-                falResult = await fetchFromFal('https://fal.run/fal-ai/bytedance/seedream/v4/edit', { 
-                    
-                    image_urls: allImageUrls, // Pass the combined array
-                    
-                    prompt: safetyPrompt,
-                    
-                    image_size: {
-                        width: width,
-                        height: height
-                    }
+                falResult = await fetchFromFal('https://fal.run/fal-ai/nano-banana-pro/edit', {
+                    image_urls: [allImageUrls],
+                    prompt: safetyPrompt
                 });
+
+                // falResult = await fetchFromFal('https://fal.run/fal-ai/bytedance/seedream/v4/edit', { 
+                    
+                //     image_urls: allImageUrls, // Pass the combined array
+                    
+                //     prompt: safetyPrompt,
+                    
+                //     image_size: {
+                //         width: width,
+                //         height: height
+                //     }
+                // });
                 
                 break;
             }
