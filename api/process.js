@@ -525,7 +525,7 @@ case 'video': {
                     image_url: image_url,
                     mask_url: mask_url,
                     prompt: creativePrompt,
-                    guidance_scale: 30, // Higher guidance forces the model to listen to the prompt (hallucinate bricks)
+                    guidance_scale: 20, // Higher guidance forces the model to listen to the prompt (hallucinate bricks)
                     strength: 1.0,      // 1.0 = Complete replacement of masked area
                     steps: 28           // Standard for high quality
                 });
