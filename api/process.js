@@ -313,10 +313,9 @@ case 'generic_restore': {
                 break;
             }
             case 'outfit_transfer': {
-                // ✅ FIX: Destructure 'style_urls' (plural array) instead of 'style_url'
                 const { image_url, style_urls, prompt, width, height } = apiParams;
         
-                console.log("[PROCESS-IMAGE] 'outfit_transfer'. Using seedream/v4/edit. Mask will be ignored.");
+                console.log("[PROCESS-IMAGE] 'outfit_transfer'. Using nano-banana-pro.");
                 
                 const defaultPrompt = "Combine the styles from the clothing images and apply them to the person. " +
                                                 "The person's face, skin, hair, and background must be preserved. Maintain consistency of the person, and the direction in which they face. " +
@@ -325,26 +324,23 @@ case 'generic_restore': {
                                                 
                 const safetyPrompt = prompt ? prompt + " " + defaultPrompt : defaultPrompt;
                 
-                // ✅ FIX: Combine the base image URL with the style URLs array
-                const allImageUrls = [image_url, ...style_urls];
+                // 1. Ensure style_urls is an array to prevent runtime errors if it's undefined
+                const styles = Array.isArray(style_urls) ? style_urls : [];
+                
+                // 2. Combine the base image URL with the style URLs array
+                const allImageUrls = [image_url, ...styles];
                 
                 console.log(`[PROCESS-IMAGE] Sending ${allImageUrls.length} total images to Fal.`);
+                
+                // 3. THE FIX: Pass 'allImageUrls' directly. Do not wrap it in [] brackets.
                 falResult = await fetchFromFal('https://fal.run/fal-ai/nano-banana-pro/edit', {
-                    image_urls: [allImageUrls],
-                    prompt: safetyPrompt
+                    image_urls: allImageUrls, 
+                    prompt: safetyPrompt,
+                    image_size: {
+                        width: width ?? 1024, // Fallback to 1024 if undefined
+                        height: height ?? 1024
+                    }
                 });
-
-                // falResult = await fetchFromFal('https://fal.run/fal-ai/bytedance/seedream/v4/edit', { 
-                    
-                //     image_urls: allImageUrls, // Pass the combined array
-                    
-                //     prompt: safetyPrompt,
-                    
-                //     image_size: {
-                //         width: width,
-                //         height: height
-                //     }
-                // });
                 
                 break;
             }
