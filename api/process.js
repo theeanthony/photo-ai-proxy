@@ -488,46 +488,51 @@ case 'video': {
             }
 
             case 'ai_resize': {
-                // ⚠️ REVERT SWIFT: Use 'performAIResize' which sends { image_url, mask_url }
                 const { image_url, mask_url } = apiParams;
             
-                // --- STEP 1: Vision Check (Moondream) ---
-                // We let the AI see the image so it knows WHAT to extend (e.g., "yellow brick road")
+                // --- STEP 1: Vision Check (Moondream 2) ---
+                // ⚠️ CRITICAL CHANGE: We explicitly tell the AI to IGNORE the person.
+                // This prevents it from describing "suit/tie" which ruins the outpainting.
                 let visionDescription = "";
                 try {
                     const visionResult = await fetchFromFal('https://fal.run/fal-ai/moondream2', {
                         image_url: image_url,
-                        prompt: "Describe the textures and scenery in this image in extreme detail. Mention materials (e.g., brick, asphalt, grass), lighting, and colors."
+                        prompt: "Describe the background, walls, floor, and lighting of this image. Do NOT describe the people or main subject. Focus on the environment textures."
                     });
                     
                     // Handle varied outputs
                     if (visionResult.outputs && Array.isArray(visionResult.outputs)) {
                          visionDescription = visionResult.outputs[0];
                     } else {
-                         visionDescription = visionResult.output || "Detailed scenery";
+                         visionDescription = visionResult.output || "Detailed background scenery";
                     }
-                    console.log("👁️ Vision Context:", visionDescription);
+                    console.log("👁️ Refined Vision Context:", visionDescription);
+            
                 } catch (err) {
-                    visionDescription = "A high-quality, realistic photograph.";
+                    console.warn("Vision check failed:", err);
+                    visionDescription = "A blurred background with natural lighting.";
                 }
             
-                // --- STEP 2: The "Texture" Prompt ---
-                // We explicitly force Flux to matching the description and avoid "smooth" fills.
+                // --- STEP 2: The "Structure" Prompt ---
+                // We update the prompt to focus on structure (depth, walls) rather than just "outpainting".
                 const creativePrompt = 
-                    `Seamlessly outpaint the image. Extend the scene naturally based on this context: "${visionDescription}". ` +
-                    "High fidelity, matching grain, matching lighting, intricate details. " +
-                    "Ensure continuous patterns (e.g. continue floor tiles, road markings, or foliage). " +
-                    "Photorealistic, 8k, highly detailed.";
+                    `High resolution outpainting. Extend the background environment naturally. ` +
+                    `Context: ${visionDescription}. ` +
+                    `Maintain the existing focal depth and lighting. ` +
+                    `If the background is blurry, keep the extension blurry (bokeh). ` +
+                    `Seamless transition, no hard edges, photorealistic.`;
+            
+                // 🔍 VERIFICATION LOG: This answers your question
+                console.log("🎨 FINAL PROMPT SENT TO FLUX:", creativePrompt);
             
                 // --- STEP 3: Generate with Flux Pro Fill ---
-                // This model is superior to Ideogram for outpainting textures.
-                falResult = await fetchFromFal('https://fal.run/fal-ai/flux-pro/v1/fill', {
+                falResult = await fetchFromFal('https://fal.run/fal-ai/flux-pro/v1/fill-finetuned', {
                     image_url: image_url,
                     mask_url: mask_url,
                     prompt: creativePrompt,
-                    guidance_scale: 20, // Higher guidance forces the model to listen to the prompt (hallucinate bricks)
-                    strength: 1.0,      // 1.0 = Complete replacement of masked area
-                    steps: 28           // Standard for high quality
+                    guidance_scale: 20, // Keep at 20 (Max allowed)
+                    strength: 1.0,      
+                    steps: 28           
                 });
                 
                 break;
