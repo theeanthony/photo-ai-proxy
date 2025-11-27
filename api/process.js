@@ -487,39 +487,37 @@ case 'video': {
                 return res.status(202).json({ message: "Training job submitted." });
             }
 
-case 'ai_resize': {
-    const { image_url, mask_url, expansion_direction } = apiParams;
-    
-    // Build a smarter prompt based on expansion direction
-    let contextualPrompt = "A high-quality, realistic photograph. ";
-    
-    if (expansion_direction === 'vertical') {
-        contextualPrompt += "Naturally extend the sky upward and the ground/floor downward. " +
-            "Maintain the horizon line and perspective. " +
-            "Continue existing patterns seamlessly (clouds, terrain, flooring). ";
-    } else if (expansion_direction === 'horizontal') {
-        contextualPrompt += "Naturally extend the scene to the left and right sides. " +
-            "Maintain perspective and scale of existing elements. " +
-            "Continue architectural or environmental patterns seamlessly. ";
-    } else {
-        contextualPrompt += "Extend the scene in all directions naturally. " +
-            "Maintain perspective, lighting, and existing scene elements. ";
-    }
-    
-    contextualPrompt += "Match the exact lighting, color palette, and style of the original photo. " +
-        "Fill masked areas with contextually appropriate content.";
-    
-    falResult = await fetchFromFal('https://fal.run/fal-ai/flux-pro/v1/fill', { 
-        image_url: image_url,
-        mask_url: mask_url,
-        prompt: contextualPrompt,
-        negative_prompt: "repetition, repeating patterns, collage, stacked images, " +
-            "duplicated objects, duplicated subjects, frames, borders, incoherent, " +
-            "disjointed, multiple people, tiling, artifacts, mirroring, " +
-            "unrelated scenery, random objects, unnatural transitions"
-    });
-    break;
-}
+            case 'ai_resize': {
+                const { image_url, expansion_direction } = apiParams;
+            
+                // 1. Map direction to 'image_size' Enum
+                let targetSize = "square_hd"; 
+                if (expansion_direction === 'vertical') {
+                    targetSize = "portrait_16_9"; 
+                } else if (expansion_direction === 'horizontal') {
+                    targetSize = "landscape_16_9"; 
+                }
+            
+                // 2. "Creative" Prompting
+                // We remove "realistic" (which triggers blur) and add "intricate details".
+                // We explicitly ask for "complex background" to prevent solid fills.
+                const magicPrompt = 
+                    "A wide-angle, high-resolution photograph. " +
+                    "The scene extends naturally with intricate details, complex background elements, and environmental context. " +
+                    "Seamlessly continue existing textures and patterns. " +
+                    "No solid colors, no blurring, fully detailed scenery.";
+            
+                // 3. Call Ideogram V3 Reframe
+                falResult = await fetchFromFal('https://fal.run/fal-ai/ideogram/v3/reframe', {
+                    image_url: image_url,
+                    image_size: targetSize, 
+                    prompt: magicPrompt, 
+                    style: "GENERAL" // ✅ CHANGED: 'GENERAL' allows more creative hallucination than 'REALISTIC'
+                    // rendering_speed: "QUALITY" // ✅ OPTIONAL: If you have budget, 'QUALITY' forces more detail check.
+                });
+                
+                break;
+            }
 
 
 
