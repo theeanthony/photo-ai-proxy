@@ -345,27 +345,36 @@ case 'generic_restore': {
                 break;
             }
 
-        case 'textual_edit': {
-            // Extract parameters sent from the app
-            const { image_url, mask_url, prompt } = apiParams;
-
-            if (mask_url) {
-                // --- MASK IS PROVIDED ---
-                // Use the 'flux-pro' model, which is much better
-                // at precise inpainting (filling masked areas).
-
-                console.log("[PROCESS-IMAGE] Masked 'textual_edit'. Using flux-pro/fill.");
-                
-                falResult = await fetchFromFal('https://fal.run/fal-ai/flux-pro/v1/fill', { 
-                    image_url: image_url,
-                    mask_url: mask_url,
-                    prompt: prompt, // Use the user's exact prompt
-                    negative_prompt: "repetition, repeating patterns, collage, " +
-                        "duplicated objects, duplicated subjects, frames, borders, incoherent, " +
-                        "disjointed, tiling, artifacts, mirroring"
-                });
-
-            } else {
+            case 'textual_edit': {
+                // Extract parameters
+                const { image_url, mask_url, prompt } = apiParams;
+            
+                if (mask_url) {
+                    // --- CASE A: MASK PROVIDED (Use Ideogram V3 Edit) ---
+                    // This matches your requirement: "Mask + Text" to make things specific.
+                    console.log("[PROCESS-IMAGE] Using SOTA masked model: fal-ai/ideogram/v3/edit");
+            
+                    falResult = await fetchFromFal('https://fal.run/fal-ai/ideogram/v3/edit', {
+                        // 1. Required Inputs
+                        image_url: image_url,
+                        mask_url: mask_url,   // V3 Edit requires this
+                        prompt: prompt,       // The text instruction (e.g. "professional tuxedo")
+            
+                        // 2. Style Setting
+                        // Ideogram V3 specific setting. "REALISTIC" is best for photos.
+                        // Options: "REALISTIC", "DESIGN", "3D", "ANIME"
+                        style: "REALISTIC", 
+            
+                        // 3. Magic Prompt
+                        // "true" allows Ideogram to rewrite your prompt for better results.
+                        // Set to "false" if you want it to follow your words exactly verbatim.
+                        expand_prompt: true,
+                        
+                        // 4. Standard Params
+                        sync_mode: true
+                    });
+            
+                } else {
                 // --- NO MASK PROVIDED ---
                 // Fall back to 'nano-banana' for global, text-only style edits.
 
