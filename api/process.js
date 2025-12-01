@@ -356,7 +356,7 @@ case 'generic_restore': {
 
                 console.log("[PROCESS-IMAGE] Masked 'textual_edit'. Using flux-pro/fill.");
                 
-                falResult = await fetchFromFal('https://fal.run/fal-ai/flux-pro/kontext', { 
+                falResult = await fetchFromFal('https://fal.run/fal-ai/flux-pro/v1/fill', { 
                     image_url: image_url,
                     mask_url: mask_url,
                     prompt: prompt, // Use the user's exact prompt
