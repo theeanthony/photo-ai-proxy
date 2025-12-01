@@ -117,6 +117,25 @@ case 'new_resize': {
     });
     break;
 }
+// Inside module.exports switch(jobType) ...
+
+case 'generate_thumbnail': {
+    const { prompt } = apiParams;
+    
+    console.log(`[PROCESS-IMAGE] Generating thumbnail via Nano Banana Pro (Text-to-Image).`);
+    console.log(`[PROCESS-IMAGE] Prompt: ${prompt}`);
+
+    // ✅ UPDATED: Using correct schema for Nano Banana Pro
+    falResult = await fetchFromFal('https://fal.run/fal-ai/nano-banana-pro', { 
+        prompt: prompt,
+        num_images: 1,
+        aspect_ratio: "1:1", // Valid enum value
+        resolution: "1K",    // Valid enum value
+        output_format: "jpeg" // Returns JPEG directly
+    });
+    break;
+}
+
 case 'generic_restore': {
 
     // ✅ MODIFIED: Extract width and height
