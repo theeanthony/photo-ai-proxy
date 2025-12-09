@@ -181,8 +181,13 @@ module.exports = async (req, res) => {
             
             const userData = userDoc.data();
             const isUnlimited = userData.subscriptionStatus === 'Unlimited';
+            const monthlyUsage = userData.monthlyUsage || 0;
             const credits = userData.credits || 0;
 
+            if (isUnlimited && monthlyUsage > 2000) {
+                console.log(`🐢 Throttling heavy user: ${uid}`);
+                await new Promise(resolve => setTimeout(resolve, 5000));
+            }
             // 3. RATE LIMITING (Fair Use)
             const now = Date.now();
             const lastReq = userData.lastRequestTimestamp ? userData.lastRequestTimestamp.toMillis() : 0;
