@@ -118,8 +118,8 @@ const BASE_URL = "https://api.topazlabs.com/image/v1";
 // Based on Topaz Pricing: <24MP = 1, <64MP = 4, etc. [cite: 42-46]
 function calculateCost(endpoint, params) {
     // If not enhancing/upscaling (e.g. status check), cost is 0
-    if (!endpoint.includes('enhance') && !endpoint.includes('upscale')) return 0;
-
+    if (endpoint.includes('status') || endpoint.includes('download')) return 0;
+    
     // Client must send 'estimated_mp' (Megapixels) in the request body
     // If missing, default to 1 credit (Standard HD image)
     const mp = params.estimated_mp || 12.0; 
@@ -204,7 +204,7 @@ module.exports = async (req, res) => {
             }
 
             // =================================================
-            // 💎 CALL TOPAZ API
+            // 💎 CALL Rez API
             // =================================================
             
             // 1. Create FormData [cite: 7]
