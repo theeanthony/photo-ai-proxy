@@ -167,6 +167,13 @@ module.exports = async (req, res) => {
     // =========================================================
     if (req.method === 'POST') {
         const { endpoint, source_url, ...otherParams } = req.body;
+        // In your Vercel function, add this at the beginning of POST handler
+console.log("📡 Received POST request:", {
+    endpoint: endpoint,
+    source_url: source_url,
+    otherParams: otherParams,
+    headers: req.headers
+});
 
         if (!endpoint || !source_url) {
             return res.status(400).json({ error: "Missing required params" });
