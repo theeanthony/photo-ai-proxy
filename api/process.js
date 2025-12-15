@@ -135,6 +135,37 @@ case 'generate_thumbnail': {
     });
     break;
 }
+// In process.js
+
+case 'rez_colorize': {
+    // 1. Extract dimensions from apiParams
+    const { image_url, prompt, width, height } = apiParams;
+    
+    console.log(`[PROCESS-IMAGE] 'rez_colorize' job started.`);
+    console.log(`[PROCESS-IMAGE] Target Dimensions: ${width}x${height}`);
+
+    const finalPrompt = prompt || "restore this old photo, colorize it, add natural realistic colors, high fidelity, 4k, photography";
+    const negativePrompt = "black and white, monochrome, sepia, washed out, low quality, artifacts";
+
+    // 2. Pass image_size to Seedream
+    falResult = await fetchFromFal('https://fal.run/fal-ai/bytedance/seedream/v4/edit', {
+        image_urls: [image_url],
+        prompt: finalPrompt,
+        negative_prompt: negativePrompt,
+        style_strength: 0.7,
+        
+        // ✅ THE FIX: Force output dimensions to match input
+        image_size: {
+            width: width,
+            height: height
+        }
+    });
+    break;
+}
+    
+    // 3. Formatting is automatic (returns { images: [...] })
+    break;
+}
 
 case 'generic_restore': {
 
