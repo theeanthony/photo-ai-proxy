@@ -135,8 +135,6 @@ case 'generate_thumbnail': {
     });
     break;
 }
-// In process.js
-
 case 'rez_colorize': {
     // 1. Extract dimensions from apiParams
     const { image_url, prompt, width, height } = apiParams;
@@ -160,10 +158,6 @@ case 'rez_colorize': {
             height: height
         }
     });
-    break;
-}
-    
-    // 3. Formatting is automatic (returns { images: [...] })
     break;
 }
 
