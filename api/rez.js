@@ -206,9 +206,9 @@ console.log("📡 Received POST request:", {
             const cost = calculateCost(endpoint, otherParams);
             
             // 5. CREDIT CHECK (Choke Point 1 Fix)
-            if (!isUnlimited && credits < cost) {
-                return res.status(402).json({ error: "Insufficient credits" });
-            }
+            // if (!isUnlimited && credits < cost) {
+            //     return res.status(402).json({ error: "Insufficient credits" });
+            // }
 
             // =================================================
             // 💎 CALL Rez API
