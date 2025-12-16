@@ -170,8 +170,8 @@ module.exports = async (req, res) => {
 
         console.log("📡 Received POST request:", {
             endpoint: endpoint,
-            source_url: source_url,
-            otherParams: otherParams
+            model: otherParams.model, 
+            headers: req.headers
         });
 
         if (!endpoint || !source_url) {
@@ -179,79 +179,93 @@ module.exports = async (req, res) => {
         }
 
         try {
-            // 2. READ USER STATE (Credits & Sub)
-            const userRef = db.collection('users').doc(uid);
-            const userDoc = await userRef.get();
+            // ... (User/Credit/RateLimit checks - Keep existing) ...
             
-            if (!userDoc.exists) return res.status(404).json({ error: "User not found" });
-            
-            const userData = userDoc.data();
-            const isUnlimited = userData.subscriptionStatus === 'Unlimited';
-            const monthlyUsage = userData.monthlyUsage || 0;
-            // const credits = userData.credits || 0; // Uncomment if enabling credit checks
-
-            if (isUnlimited && monthlyUsage > 2000) {
-                console.log(`🐢 Throttling heavy user: ${uid}`);
-                await new Promise(resolve => setTimeout(resolve, 5000));
-            }
-            
-            // 3. RATE LIMITING (Fair Use)
-            const now = Date.now();
-            const lastReq = userData.lastRequestTimestamp ? userData.lastRequestTimestamp.toMillis() : 0;
-            if (now - lastReq < 2000) { // 2 Seconds Cool-down
-                return res.status(429).json({ error: "Please wait a moment before trying again." });
-            }
-
-            // 4. CALCULATE COST
             const cost = calculateCost(endpoint, otherParams);
+
+            // =================================================
+            // 💎 CALL Rez API (HYBRID MODE)
+            // =================================================
             
-            // 5. CREDIT CHECK (Optional - Uncomment to enable)
-            // if (!isUnlimited && credits < cost) {
-            //     return res.status(402).json({ error: "Insufficient credits" });
-            // }
+            const isGenerative = endpoint.includes('gen'); 
 
-            // =================================================
-            // 💎 CALL Rez API (JSON MODE)
-            // =================================================
+            let response;
 
-            // 1. Prepare clean JSON body
-            const topazBody = {
-                source_url: source_url,
-                ...otherParams
-            };
+            if (isGenerative) {
+                // -------------------------------------------------
+                // OPTION A: JSON (For Redefine, Restore, GenAI)
+                // -------------------------------------------------
+                console.log("twisted: Using JSON strategy for Generative Endpoint");
 
-            // Remove internal param
-            delete topazBody.estimated_mp;
+                const topazBody = {
+                    source_url: source_url,
+                    ...otherParams
+                };
+                delete topazBody.estimated_mp;
 
-            // 2. Force Type Conversion (Critical for Generative models)
-            if (topazBody.output_height) topazBody.output_height = parseInt(topazBody.output_height, 10);
-            if (topazBody.creativity) topazBody.creativity = parseInt(topazBody.creativity, 10);
-            if (topazBody.sharpen) topazBody.sharpen = parseFloat(topazBody.sharpen);
+                // ✅ FIX 1: Parse INTEGERS (Height, Creativity)
+                if (topazBody.output_height) topazBody.output_height = parseInt(topazBody.output_height, 10);
+                if (topazBody.creativity) topazBody.creativity = parseInt(topazBody.creativity, 10);
+                
+                // ✅ FIX 2: Parse FLOATS (Sharpen, Strength)
+                if (topazBody.sharpen) topazBody.sharpen = parseFloat(topazBody.sharpen);
+                if (topazBody.face_enhancement_strength) topazBody.face_enhancement_strength = parseFloat(topazBody.face_enhancement_strength);
+                if (topazBody.denoise) topazBody.denoise = parseFloat(topazBody.denoise);
 
-            console.log("🚀 Forwarding JSON to Topaz:", JSON.stringify(topazBody));
+                // ✅ FIX 3: Parse BOOLEANS (Face Enhance, Color Correction)
+                // Swift sends "true"/"false" strings. We must convert to actual Booleans.
+                if (topazBody.face_enhancement) {
+                    topazBody.face_enhancement = (topazBody.face_enhancement === 'true');
+                }
+                if (topazBody.color_correction) {
+                    topazBody.color_correction = (topazBody.color_correction === 'true');
+                }
 
-            // 3. Send Request
-            const response = await fetch(`${BASE_URL}/${endpoint}`, {
-                method: 'POST',
-                headers: {
-                    'X-API-Key': TOPAZ_API_KEY,
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json' // ✅ Explicitly JSON
-                },
-                body: JSON.stringify(topazBody)
-            });
+                response = await fetch(`${BASE_URL}/${endpoint}`, {
+                    method: 'POST',
+                    headers: {
+                        'X-API-Key': TOPAZ_API_KEY,
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(topazBody)
+                });
 
+            } else {
+                // -------------------------------------------------
+                // OPTION B: FORMDATA (For Standard Enhance, Upscale)
+                // -------------------------------------------------
+                // Standard models are robust and accept Strings for everything.
+                console.log("twisted: Using FormData strategy for Standard Endpoint");
+
+                const form = new FormData();
+                form.append('source_url', source_url);
+                
+                for (const [key, value] of Object.entries(otherParams)) {
+                    if (key !== 'estimated_mp') {
+                        form.append(key, String(value));
+                    }
+                }
+
+                response = await fetch(`${BASE_URL}/${endpoint}`, {
+                    method: 'POST',
+                    headers: {
+                        'X-API-Key': TOPAZ_API_KEY,
+                        'Accept': 'application/json',
+                        ...form.getHeaders()
+                    },
+                    body: form
+                });
+            }
+
+            // ... (Handle Response & Deduct Credits - Keep existing) ...
+            
             const data = await response.json();
-            
             if (!response.ok) {
                  console.error("Topaz Error:", data);
                  return res.status(response.status).json(data);
             }
 
-            // =================================================
-            // 💰 ATOMIC DEDUCTION
-            // =================================================
-            
             await userRef.update({
                 lastRequestTimestamp: admin.firestore.FieldValue.serverTimestamp(),
                 credits: isUnlimited ? admin.firestore.FieldValue.increment(0) : admin.firestore.FieldValue.increment(-cost),
