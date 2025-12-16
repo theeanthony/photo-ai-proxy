@@ -218,7 +218,9 @@ console.log("📡 Received POST request:", {
             
             // 1. Create FormData [cite: 7]
             const form = new FormData();
-            form.append('source_url', source_url);
+
+            const fileParamKey = endpoint.includes('enhance-gen') ? 'input_uri' : 'source_url';
+            form.append(fileParamKey, source_url);
             
             // 2. Append params (Filtering out our internal params like 'estimated_mp')
             for (const [key, value] of Object.entries(otherParams)) {
