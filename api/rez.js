@@ -64,7 +64,7 @@ module.exports = async (req, res) => {
     // =========================================================
     if (req.method === 'POST') {
         const { endpoint, source_url, ...otherParams } = req.body;
-
+        const userRef = db.collection('users').doc(uid);
         // 🔍 DEBUG 1: Log Incoming Payload
         console.log("📦 [Proxy] Incoming Payload:", JSON.stringify(req.body, null, 2));
 
@@ -74,8 +74,9 @@ module.exports = async (req, res) => {
 
         try {
             // 1. Check User Credits
-            const userRef = db.collection('users').doc(uid);
             const userDoc = await userRef.get();
+            const userRef = db.collection('users').doc(uid);
+            
             const userData = userDoc.exists ? userDoc.data() : {};
             
             const cost = calculateCost(endpoint, otherParams);
