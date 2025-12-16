@@ -162,53 +162,78 @@ module.exports = async (req, res) => {
         return res.status(401).json({ error: "Invalid Token" });
     }
 
-   // =========================================================
+    // =========================================================
     // 🚀 HANDLE POST (START JOB)
     // =========================================================
     if (req.method === 'POST') {
         const { endpoint, source_url, ...otherParams } = req.body;
-
-        console.log("📡 Received POST request:", {
-            endpoint: endpoint,
-            model: otherParams.model
-        });
+        // In your Vercel function, add this at the beginning of POST handler
+console.log("📡 Received POST request:", {
+    endpoint: endpoint,
+    source_url: source_url,
+    otherParams: otherParams,
+    headers: req.headers
+});
 
         if (!endpoint || !source_url) {
             return res.status(400).json({ error: "Missing required params" });
         }
 
         try {
-            // ... (Keep your User/Credit/RateLimit checks here) ...
+            // 2. READ USER STATE (Credits & Sub)
+            const userRef = db.collection('users').doc(uid);
+            const userDoc = await userRef.get();
             
+            if (!userDoc.exists) return res.status(404).json({ error: "User not found" });
+            
+            const userData = userDoc.data();
+            const isUnlimited = userData.subscriptionStatus === 'Unlimited';
+            const monthlyUsage = userData.monthlyUsage || 0;
+            const credits = userData.credits || 0;
+
+            if (isUnlimited && monthlyUsage > 2000) {
+                console.log(`🐢 Throttling heavy user: ${uid}`);
+                await new Promise(resolve => setTimeout(resolve, 5000));
+            }
+            // 3. RATE LIMITING (Fair Use)
+            const now = Date.now();
+            const lastReq = userData.lastRequestTimestamp ? userData.lastRequestTimestamp.toMillis() : 0;
+            if (now - lastReq < 2000) { // 2 Seconds Cool-down
+                return res.status(429).json({ error: "Please wait a moment before trying again." });
+            }
+
+            // 4. CALCULATE COST
             const cost = calculateCost(endpoint, otherParams);
+            
+            // 5. CREDIT CHECK (Choke Point 1 Fix)
+            // if (!isUnlimited && credits < cost) {
+            //     return res.status(402).json({ error: "Insufficient credits" });
+            // }
 
             // =================================================
-            // 💎 CALL Rez API (UNIFIED FORMDATA)
+            // 💎 CALL Rez API
             // =================================================
-            // All Topaz endpoints (Standard & Gen) require Multipart/Form-Data.
+
+
             
+            // 1. Create FormData [cite: 7]
             const form = new FormData();
             form.append('source_url', source_url);
             
-            // Clean and Append Parameters
+            // 2. Append params (Filtering out our internal params like 'estimated_mp')
             for (const [key, value] of Object.entries(otherParams)) {
-                // 1. Filter out internal params
-                if (key === 'estimated_mp') continue;
-                
-                // 2. Append everything as String
-                // Since Swift now sends "2" (int) instead of "0.35" (float), 
-                // Topaz will parse "2" correctly from the form data.
-                form.append(key, String(value));
+                if (key !== 'estimated_mp') {
+                    form.append(key, String(value));
+                }
             }
 
-            console.log("🚀 Forwarding FormData to Topaz:", endpoint);
-
+            // 3. Send [cite: 6]
             const response = await fetch(`${BASE_URL}/${endpoint}`, {
                 method: 'POST',
                 headers: {
                     'X-API-Key': TOPAZ_API_KEY,
                     'Accept': 'application/json',
-                    ...form.getHeaders() // ✅ Adds the multipart boundary
+                    ...form.getHeaders()
                 },
                 body: form
             });
@@ -221,11 +246,13 @@ module.exports = async (req, res) => {
             }
 
             // =================================================
-            // 💰 ATOMIC DEDUCTION
+            // 💰 ATOMIC DEDUCTION (Choke Point 2 Fix)
             // =================================================
-
+            // Only runs if Topaz accepted the job (200 OK)
+            
             await userRef.update({
                 lastRequestTimestamp: admin.firestore.FieldValue.serverTimestamp(),
+                // Only deduct if not unlimited
                 credits: isUnlimited ? admin.firestore.FieldValue.increment(0) : admin.firestore.FieldValue.increment(-cost),
                 lifetime_generations: admin.firestore.FieldValue.increment(1)
             });
