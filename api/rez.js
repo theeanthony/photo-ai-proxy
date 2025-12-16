@@ -224,7 +224,8 @@ console.log("📡 Received POST request:", {
             
             // 2. Append params (Filtering out our internal params like 'estimated_mp')
             for (const [key, value] of Object.entries(otherParams)) {
-                if (key !== 'estimated_mp') {
+                // Filter out internal params AND 'input_uri' (to prevent duplicates if sent from iOS)
+                if (key !== 'estimated_mp' && key !== 'input_uri') {
                     form.append(key, String(value));
                 }
             }
