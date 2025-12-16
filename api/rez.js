@@ -170,8 +170,7 @@ module.exports = async (req, res) => {
 
         console.log("📡 Received POST request:", {
             endpoint: endpoint,
-            model: otherParams.model, 
-            headers: req.headers
+            model: otherParams.model
         });
 
         if (!endpoint || !source_url) {
@@ -179,92 +178,51 @@ module.exports = async (req, res) => {
         }
 
         try {
-            // ... (User/Credit/RateLimit checks - Keep existing) ...
+            // ... (Keep your User/Credit/RateLimit checks here) ...
             
             const cost = calculateCost(endpoint, otherParams);
 
             // =================================================
-            // 💎 CALL Rez API (HYBRID MODE)
+            // 💎 CALL Rez API (UNIFIED FORMDATA)
             // =================================================
+            // All Topaz endpoints (Standard & Gen) require Multipart/Form-Data.
             
-            const isGenerative = endpoint.includes('gen'); 
-
-            let response;
-
-            if (isGenerative) {
-                // -------------------------------------------------
-                // OPTION A: JSON (For Redefine, Restore, GenAI)
-                // -------------------------------------------------
-                console.log("twisted: Using JSON strategy for Generative Endpoint");
-
-                const topazBody = {
-                    source_url: source_url,
-                    ...otherParams
-                };
-                delete topazBody.estimated_mp;
-
-                // ✅ FIX 1: Parse INTEGERS (Height, Creativity)
-                if (topazBody.output_height) topazBody.output_height = parseInt(topazBody.output_height, 10);
-                if (topazBody.creativity) topazBody.creativity = parseInt(topazBody.creativity, 10);
+            const form = new FormData();
+            form.append('source_url', source_url);
+            
+            // Clean and Append Parameters
+            for (const [key, value] of Object.entries(otherParams)) {
+                // 1. Filter out internal params
+                if (key === 'estimated_mp') continue;
                 
-                // ✅ FIX 2: Parse FLOATS (Sharpen, Strength)
-                if (topazBody.sharpen) topazBody.sharpen = parseFloat(topazBody.sharpen);
-                if (topazBody.face_enhancement_strength) topazBody.face_enhancement_strength = parseFloat(topazBody.face_enhancement_strength);
-                if (topazBody.denoise) topazBody.denoise = parseFloat(topazBody.denoise);
-
-                // ✅ FIX 3: Parse BOOLEANS (Face Enhance, Color Correction)
-                // Swift sends "true"/"false" strings. We must convert to actual Booleans.
-                if (topazBody.face_enhancement) {
-                    topazBody.face_enhancement = (topazBody.face_enhancement === 'true');
-                }
-                if (topazBody.color_correction) {
-                    topazBody.color_correction = (topazBody.color_correction === 'true');
-                }
-
-                response = await fetch(`${BASE_URL}/${endpoint}`, {
-                    method: 'POST',
-                    headers: {
-                        'X-API-Key': TOPAZ_API_KEY,
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(topazBody)
-                });
-
-            } else {
-                // -------------------------------------------------
-                // OPTION B: FORMDATA (For Standard Enhance, Upscale)
-                // -------------------------------------------------
-                // Standard models are robust and accept Strings for everything.
-                console.log("twisted: Using FormData strategy for Standard Endpoint");
-
-                const form = new FormData();
-                form.append('source_url', source_url);
-                
-                for (const [key, value] of Object.entries(otherParams)) {
-                    if (key !== 'estimated_mp') {
-                        form.append(key, String(value));
-                    }
-                }
-
-                response = await fetch(`${BASE_URL}/${endpoint}`, {
-                    method: 'POST',
-                    headers: {
-                        'X-API-Key': TOPAZ_API_KEY,
-                        'Accept': 'application/json',
-                        ...form.getHeaders()
-                    },
-                    body: form
-                });
+                // 2. Append everything as String
+                // Since Swift now sends "2" (int) instead of "0.35" (float), 
+                // Topaz will parse "2" correctly from the form data.
+                form.append(key, String(value));
             }
 
-            // ... (Handle Response & Deduct Credits - Keep existing) ...
-            
+            console.log("🚀 Forwarding FormData to Topaz:", endpoint);
+
+            const response = await fetch(`${BASE_URL}/${endpoint}`, {
+                method: 'POST',
+                headers: {
+                    'X-API-Key': TOPAZ_API_KEY,
+                    'Accept': 'application/json',
+                    ...form.getHeaders() // ✅ Adds the multipart boundary
+                },
+                body: form
+            });
+
             const data = await response.json();
+            
             if (!response.ok) {
                  console.error("Topaz Error:", data);
                  return res.status(response.status).json(data);
             }
+
+            // =================================================
+            // 💰 ATOMIC DEDUCTION
+            // =================================================
 
             await userRef.update({
                 lastRequestTimestamp: admin.firestore.FieldValue.serverTimestamp(),
