@@ -162,18 +162,17 @@ module.exports = async (req, res) => {
         return res.status(401).json({ error: "Invalid Token" });
     }
 
-    // =========================================================
+   // =========================================================
     // 🚀 HANDLE POST (START JOB)
     // =========================================================
     if (req.method === 'POST') {
         const { endpoint, source_url, ...otherParams } = req.body;
-        // In your Vercel function, add this at the beginning of POST handler
-console.log("📡 Received POST request:", {
-    endpoint: endpoint,
-    source_url: source_url,
-    otherParams: otherParams,
-    headers: req.headers
-});
+
+        console.log("📡 Received POST request:", {
+            endpoint: endpoint,
+            source_url: source_url,
+            otherParams: otherParams
+        });
 
         if (!endpoint || !source_url) {
             return res.status(400).json({ error: "Missing required params" });
@@ -189,12 +188,13 @@ console.log("📡 Received POST request:", {
             const userData = userDoc.data();
             const isUnlimited = userData.subscriptionStatus === 'Unlimited';
             const monthlyUsage = userData.monthlyUsage || 0;
-            const credits = userData.credits || 0;
+            // const credits = userData.credits || 0; // Uncomment if enabling credit checks
 
             if (isUnlimited && monthlyUsage > 2000) {
                 console.log(`🐢 Throttling heavy user: ${uid}`);
                 await new Promise(resolve => setTimeout(resolve, 5000));
             }
+            
             // 3. RATE LIMITING (Fair Use)
             const now = Date.now();
             const lastReq = userData.lastRequestTimestamp ? userData.lastRequestTimestamp.toMillis() : 0;
@@ -205,35 +205,40 @@ console.log("📡 Received POST request:", {
             // 4. CALCULATE COST
             const cost = calculateCost(endpoint, otherParams);
             
-            // 5. CREDIT CHECK (Choke Point 1 Fix)
+            // 5. CREDIT CHECK (Optional - Uncomment to enable)
             // if (!isUnlimited && credits < cost) {
             //     return res.status(402).json({ error: "Insufficient credits" });
             // }
 
             // =================================================
-            // 💎 CALL Rez API
+            // 💎 CALL Rez API (JSON MODE)
             // =================================================
-            
-            // 1. Create FormData [cite: 7]
-            const form = new FormData();
-            form.append('source_url', source_url);
-            
-            // 2. Append params (Filtering out our internal params like 'estimated_mp')
-            for (const [key, value] of Object.entries(otherParams)) {
-                if (key !== 'estimated_mp') {
-                    form.append(key, String(value));
-                }
-            }
 
-            // 3. Send [cite: 6]
+            // 1. Prepare clean JSON body
+            const topazBody = {
+                source_url: source_url,
+                ...otherParams
+            };
+
+            // Remove internal param
+            delete topazBody.estimated_mp;
+
+            // 2. Force Type Conversion (Critical for Generative models)
+            if (topazBody.output_height) topazBody.output_height = parseInt(topazBody.output_height, 10);
+            if (topazBody.creativity) topazBody.creativity = parseInt(topazBody.creativity, 10);
+            if (topazBody.sharpen) topazBody.sharpen = parseFloat(topazBody.sharpen);
+
+            console.log("🚀 Forwarding JSON to Topaz:", JSON.stringify(topazBody));
+
+            // 3. Send Request
             const response = await fetch(`${BASE_URL}/${endpoint}`, {
                 method: 'POST',
                 headers: {
                     'X-API-Key': TOPAZ_API_KEY,
                     'Accept': 'application/json',
-                    ...form.getHeaders()
+                    'Content-Type': 'application/json' // ✅ Explicitly JSON
                 },
-                body: form
+                body: JSON.stringify(topazBody)
             });
 
             const data = await response.json();
@@ -244,13 +249,11 @@ console.log("📡 Received POST request:", {
             }
 
             // =================================================
-            // 💰 ATOMIC DEDUCTION (Choke Point 2 Fix)
+            // 💰 ATOMIC DEDUCTION
             // =================================================
-            // Only runs if Topaz accepted the job (200 OK)
             
             await userRef.update({
                 lastRequestTimestamp: admin.firestore.FieldValue.serverTimestamp(),
-                // Only deduct if not unlimited
                 credits: isUnlimited ? admin.firestore.FieldValue.increment(0) : admin.firestore.FieldValue.increment(-cost),
                 lifetime_generations: admin.firestore.FieldValue.increment(1)
             });
