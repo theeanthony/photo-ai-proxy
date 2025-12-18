@@ -543,54 +543,25 @@ case 'video': {
             case 'ai_resize': {
                 const { image_url, mask_url } = apiParams;
             
-                // --- STEP 1: Vision Check (Moondream 2) ---
-                // ⚠️ CRITICAL CHANGE: We explicitly tell the AI to IGNORE the person.
-                // This prevents it from describing "suit/tie" which ruins the outpainting.
-                let visionDescription = "";
-                try {
-                    const visionResult = await fetchFromFal('https://fal.run/fal-ai/moondream2', {
-                        image_url: image_url,
-                        prompt: "Describe the background, walls, floor, and lighting of this image. Do NOT describe the people or main subject. Focus on the environment textures."
-                    });
-                    
-                    // Handle varied outputs
-                    if (visionResult.outputs && Array.isArray(visionResult.outputs)) {
-                         visionDescription = visionResult.outputs[0];
-                    } else {
-                         visionDescription = visionResult.output || "Detailed background scenery";
-                    }
-                    console.log("👁️ Refined Vision Context:", visionDescription);
-            
-                } catch (err) {
-                    console.warn("Vision check failed:", err);
-                    visionDescription = "A blurred background with natural lighting.";
-                }
-            
-                // --- STEP 2: The "Structure" Prompt ---
-                // We update the prompt to focus on structure (depth, walls) rather than just "outpainting".
+                // ✅ FIX 2: Skip Moondream. 
+                // Flux Fill works better with a structural prompt when outpainting generic backgrounds.
+                
                 const creativePrompt = 
-                    `High resolution outpainting. Extend the background environment naturally. ` +
-                    `Context: ${visionDescription}. ` +
-                    `Maintain the existing focal depth and lighting. ` +
-                    `If the background is blurry, keep the extension blurry (bokeh). ` +
-                    `Seamless transition, no hard edges, photorealistic.`;
+                    "High quality photo outpainting. Seamlessly extend the background environment. " +
+                    "Match the lighting, textures, and depth of field of the original image. " +
+                    "Do not add new objects. Keep the background clean and natural.";
             
-                // 🔍 VERIFICATION LOG: This answers your question
-                console.log("🎨 FINAL PROMPT SENT TO FLUX:", creativePrompt);
-            
-                // --- STEP 3: Generate with Flux Pro Fill ---
                 falResult = await fetchFromFal('https://fal.run/fal-ai/flux-pro/v1/fill', {
                     image_url: image_url,
                     mask_url: mask_url,
                     prompt: creativePrompt,
-                    guidance_scale: 20, // Keep at 20 (Max allowed)
+                    guidance_scale: 20, 
                     strength: 1.0,      
                     steps: 28           
                 });
                 
                 break;
             }
-
 
 
 // In process.js
