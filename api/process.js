@@ -555,7 +555,7 @@ case 'video': {
                     image_url: image_url,
                     mask_url: mask_url,
                     prompt: creativePrompt,
-                    guidance_scale: 20, 
+                    guidance_scale: 3.5, 
                     strength: 1.0,      
                     steps: 28           
                 });
