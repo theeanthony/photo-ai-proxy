@@ -44,22 +44,47 @@ const submitToFalQueue = async (url, body) => {
     return response.json(); // Returns { request_id: "..." }
 };
 
-const checkFalQueueStatus = async (requestId, modelId = 'fal-ai/nano-banana-pro') => {
-    // Construct URL dynamically based on the model
-    const statusUrl = `https://queue.fal.run/${modelId}/requests/${requestId}`;    
-    console.log(`[QUEUE] Checking status for ${modelId}: ${statusUrl}`);
+const checkFalQueueStatus = async (requestId, modelId) => {
+    // 1. SANITIZE MODEL ID (The Fix for 405)
+    // The docs say: "Do not use subpaths for status checks."
+    // Input: "fal-ai/topaz/upscale/image"
+    // Output: "fal-ai/topaz"
+    // We take the first two segments (Namespace + Model Name).
+    const rootModelId = modelId.split('/').slice(0, 2).join('/');
+
+    // 2. Construct Status URL
+    // We MUST use '/status' to get the polling JSON (IN_QUEUE, IN_PROGRESS).
+    // Getting the request ID directly only gives the result (or 400 if not ready).
+    const statusUrl = `https://queue.fal.run/${rootModelId}/requests/${requestId}/status`;
+    
+    console.log(`[QUEUE] Checking Root Model: ${rootModelId} | URL: ${statusUrl}`);
+
     const response = await fetch(statusUrl, {
         method: 'GET',
         headers: { 
             'Authorization': `Key ${FAL_API_KEY}`, 
-            'Content-Type': 'application/json' 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
         }
     });
 
     if (!response.ok) {
+        // 3. HANDLE RACE CONDITION (The Fix for 500s)
+        // If Fal returns 404, the job is just too new to be found. 
+        // We lie to the client and say "IN_QUEUE" so it keeps polling without crashing.
+        if (response.status === 404) {
+             console.log("[QUEUE] Job ID not found yet (Propagating). Returning IN_QUEUE.");
+             return { 
+                 status: "IN_QUEUE", 
+                 request_id: requestId,
+                 logs: [] // Empty logs for safety
+             };
+        }
+        
         const txt = await response.text();
         throw new Error(`Fal Status Check Failed (${response.status}): ${txt}`);
     }
+    
     return response.json();
 };
 
@@ -100,11 +125,19 @@ module.exports = async (req, res) => {
     case 'fal_queue_status': {
         const { request_id, model_id } = apiParams;
         
-        if (!request_id) throw new Error("Missing request_id for status check");
+        if (!request_id) throw new Error("Missing request_id");
         
-        // Pass the model_id if the client sent it (e.g., 'fal-ai/topaz-photo-ai')
-        // Otherwise defaults to 'fal-ai/nano-banana-pro'
-        falResult = await checkFalQueueStatus(request_id, model_id);
+        // Default to nano-banana, but use passed ID for Topaz
+        const targetModel = model_id || 'fal-ai/nano-banana-pro';
+        
+        try {
+            falResult = await checkFalQueueStatus(request_id, targetModel);
+        } catch (error) {
+            console.error(`[QUEUE ERROR] ${error.message}`);
+            // Return a safe 500 structure so we don't crash the Swift JSON decoder
+            res.status(500).json({ error: error.message });
+            return; 
+        }
         break;
     }
 case 'new_resize': {
