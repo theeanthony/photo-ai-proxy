@@ -142,7 +142,23 @@ module.exports = async (req, res) => {
         let falResult;
 
         switch (jobType) {
-    // ADD THIS NEW CASE TO YOUR BACKEND
+
+    case 'fal_queue_result': {
+        const { request_id, model_id } = apiParams;
+        if (!request_id) throw new Error("Missing request_id");
+        
+        const targetModel = model_id || 'fal-ai/nano-banana-pro';
+        
+        try {
+            // This calls the helper function we added earlier
+            falResult = await getFalQueueResult(request_id, targetModel);
+        } catch (error) {
+            console.error(`[RESULT ERROR] ${error.message}`);
+            res.status(500).json({ error: error.message });
+            return;
+        }
+        break;
+    }
     case 'fal_topaz_enhance': {
         console.log(`[PROCESS-IMAGE] 'fal_topaz_enhance' requested.`);
         
