@@ -43,7 +43,42 @@ const submitToFalQueue = async (url, body) => {
     }
     return response.json(); // Returns { request_id: "..." }
 };
+// In process.js
 
+const getFalQueueResult = async (requestId, modelId) => {
+    // 1. Sanitize ID
+    const rootModelId = modelId.split('/').slice(0, 2).join('/');
+    
+    // 2. Construct URL (No /status here, just the ID)
+    const resultUrl = `https://queue.fal.run/${rootModelId}/requests/${requestId}`;
+    
+    console.log(`[QUEUE] Fetching Result: ${resultUrl}`);
+
+    const response = await fetch(resultUrl, {
+        method: 'GET',
+        headers: { 
+            'Authorization': `Key ${FAL_API_KEY}`, 
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        }
+    });
+
+    if (!response.ok) {
+        const txt = await response.text();
+        throw new Error(`Fal Result Fetch Failed (${response.status}): ${txt}`);
+    }
+    
+    const data = await response.json();
+    
+    // ⭐️ CRITICAL FIX: Unwrap the Fal response
+    // Fal returns { "status": "COMPLETED", "response": { "image": ... } }
+    // We want to send just { "image": ... } to Swift so your current decoder works.
+    if (data.response) {
+        return data.response; 
+    }
+    
+    return data; // Fallback if structure is different
+};
 const checkFalQueueStatus = async (requestId, modelId) => {
     // 1. SANITIZE MODEL ID (The Fix for 405)
     // The docs say: "Do not use subpaths for status checks."
