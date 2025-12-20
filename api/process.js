@@ -89,7 +89,7 @@ module.exports = async (req, res) => {
         
         // 1. Submit to Queue (Async)
         // We use 'fal-ai/topaz-photo-ai' which supports the "Standard V2", "High Fidelity" schema.
-        falResult = await submitToFalQueue('https://queue.fal.run/fal-ai/topaz-photo-ai', apiParams);
+        falResult = await submitToFalQueue('https://queue.fal.run/fal-ai/topaz/upscale/image', apiParams);
         
         // Returns { request_id: "..." }
         break;
