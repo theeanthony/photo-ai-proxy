@@ -44,14 +44,11 @@ const submitToFalQueue = async (url, body) => {
     return response.json(); // Returns { request_id: "..." }
 };
 
-const checkFalQueueStatus = async (requestId) => {
-    // 🔴 OLD (Incorrect - included '/edit'):
-    // const statusUrl = `https://queue.fal.run/fal-ai/nano-banana-pro/edit/requests/${requestId}/status`;
-
-    // ✅ FIXED: Remove '/edit'. The status lives at the model root.
-    const statusUrl = `https://queue.fal.run/fal-ai/nano-banana-pro/requests/${requestId}/status`;
+const checkFalQueueStatus = async (requestId, modelId = 'fal-ai/nano-banana-pro') => {
+    // Construct URL dynamically based on the model
+    const statusUrl = `https://queue.fal.run/${modelId}/requests/${requestId}/status`;
     
-    console.log(`[QUEUE] Checking status: ${statusUrl}`);
+    console.log(`[QUEUE] Checking status for ${modelId}: ${statusUrl}`);
     const response = await fetch(statusUrl, {
         method: 'GET',
         headers: { 
@@ -87,6 +84,30 @@ module.exports = async (req, res) => {
 
         switch (jobType) {
     // ADD THIS NEW CASE TO YOUR BACKEND
+    case 'fal_topaz_enhance': {
+        console.log(`[PROCESS-IMAGE] 'fal_topaz_enhance' requested.`);
+        
+        // 1. Submit to Queue (Async)
+        // We use 'fal-ai/topaz-photo-ai' which supports the "Standard V2", "High Fidelity" schema.
+        falResult = await submitToFalQueue('https://queue.fal.run/fal-ai/topaz-photo-ai', apiParams);
+        
+        // Returns { request_id: "..." }
+        break;
+    }
+
+    // ---------------------------------------------------------
+    // 🔄 UPDATED: Robust Status Checker
+    // ---------------------------------------------------------
+    case 'fal_queue_status': {
+        const { request_id, model_id } = apiParams;
+        
+        if (!request_id) throw new Error("Missing request_id for status check");
+        
+        // Pass the model_id if the client sent it (e.g., 'fal-ai/topaz-photo-ai')
+        // Otherwise defaults to 'fal-ai/nano-banana-pro'
+        falResult = await checkFalQueueStatus(request_id, model_id);
+        break;
+    }
 case 'new_resize': {
     const { image_url, mask_url, expansion_direction } = apiParams;
     
