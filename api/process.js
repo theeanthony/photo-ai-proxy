@@ -46,8 +46,7 @@ const submitToFalQueue = async (url, body) => {
 
 const checkFalQueueStatus = async (requestId, modelId = 'fal-ai/nano-banana-pro') => {
     // Construct URL dynamically based on the model
-    const statusUrl = `https://queue.fal.run/${modelId}/requests/${requestId}/status`;
-    
+    const statusUrl = `https://queue.fal.run/${modelId}/requests/${requestId}`;    
     console.log(`[QUEUE] Checking status for ${modelId}: ${statusUrl}`);
     const response = await fetch(statusUrl, {
         method: 'GET',
