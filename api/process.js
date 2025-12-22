@@ -645,23 +645,38 @@ case 'video': {
             }
 
             case 'ai_resize': {
-                const { image_url, mask_url } = apiParams;
-            
-                // ✅ FIX 2: Skip Moondream. 
-                // Flux Fill works better with a structural prompt when outpainting generic backgrounds.
+                const { image_url, mask_url, expansion_direction } = apiParams;
                 
-                const creativePrompt = 
-                    "High quality photo outpainting. Seamlessly extend the background environment. " +
-                    "Match the lighting, textures, and depth of field of the original image. " +
-                    "Do not add new objects. Keep the background clean and natural.";
+                // Build contextual prompt based on expansion direction
+                let basePrompt = "seamless background extension, natural environment continuation, ";
+                
+                if (expansion_direction === 'vertical') {
+                    basePrompt += "extend sky and ground naturally, ";
+                } else if (expansion_direction === 'horizontal') {
+                    basePrompt += "extend left and right sides naturally, ";
+                } else {
+                    basePrompt += "extend all directions naturally, ";
+                }
+                
+                basePrompt += "photorealistic, match lighting and colors, no new objects";
+                
+                const negativePrompt = "duplicate subject, repeated people, mirrored content, double objects, artifacts, distortion, collage, tiling";
+            
+                console.log(`[JOB: ai_resize] Calling fal-ai/flux-pro/v1/fill`);
             
                 falResult = await fetchFromFal('https://fal.run/fal-ai/flux-pro/v1/fill', {
                     image_url: image_url,
                     mask_url: mask_url,
-                    prompt: creativePrompt,
-                    guidance_scale: 3.5, 
-                    strength: 1.0,      
-                    steps: 28           
+                    prompt: basePrompt,
+                    negative_prompt: negativePrompt,
+                    
+                    // Optimal parameters for outpainting
+                    guidance_scale: 2.5,  // Lower = less creative = less hallucination
+                    num_inference_steps: 25,
+                    strength: 0.85,       // Allow original to influence slightly
+                    
+                    output_format: "jpeg",
+                    safety_tolerance: "2"
                 });
                 
                 break;
