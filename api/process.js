@@ -46,38 +46,55 @@ const submitToFalQueue = async (url, body) => {
 // In process.js
 
 const getFalQueueResult = async (requestId, modelId) => {
-    // 1. Sanitize ID
     const rootModelId = modelId.split('/').slice(0, 2).join('/');
-    
-    // 2. Construct URL (No /status here, just the ID)
     const resultUrl = `https://queue.fal.run/${rootModelId}/requests/${requestId}`;
     
-    console.log(`[QUEUE] Fetching Result: ${resultUrl}`);
-
-    const response = await fetch(resultUrl, {
-        method: 'GET',
-        headers: { 
-            'Authorization': `Key ${FAL_API_KEY}`, 
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
+    let attempts = 0;
+    const maxAttempts = 5;
+    
+    while (attempts < maxAttempts) {
+        console.log(`[QUEUE] Fetching Result (Attempt ${attempts + 1}): ${resultUrl}`);
+        
+        const response = await fetch(resultUrl, {
+            method: 'GET',
+            headers: { 
+                'Authorization': `Key ${FAL_API_KEY}`,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+        });
+        
+        // ✅ SUCCESS: Got valid JSON
+        if (response.ok) {
+            try {
+                const data = await response.json();
+                
+                // Fal wraps the result in { response: { images: [...] } }
+                if (data.response) {
+                    return data.response;
+                }
+                return data;
+                
+            } catch (jsonError) {
+                console.log(`⚠️ [QUEUE] JSON parse failed on attempt ${attempts + 1}`);
+            }
         }
-    });
-
-    if (!response.ok) {
+        
+        // ⏳ NOT READY: Wait and retry
+        if (response.status === 404 || response.status === 503) {
+            attempts++;
+            if (attempts < maxAttempts) {
+                await new Promise(resolve => setTimeout(resolve, 2000)); // 2 second delay
+                continue;
+            }
+        }
+        
+        // ❌ REAL ERROR: Throw immediately
         const txt = await response.text();
         throw new Error(`Fal Result Fetch Failed (${response.status}): ${txt}`);
     }
     
-    const data = await response.json();
-    
-    // ⭐️ CRITICAL FIX: Unwrap the Fal response
-    // Fal returns { "status": "COMPLETED", "response": { "image": ... } }
-    // We want to send just { "image": ... } to Swift so your current decoder works.
-    if (data.response) {
-        return data.response; 
-    }
-    
-    return data; // Fallback if structure is different
+    throw new Error(`Fal Result not ready after ${maxAttempts} attempts`);
 };
 const checkFalQueueStatus = async (requestId, modelId) => {
     // 1. SANITIZE MODEL ID (The Fix for 405)
