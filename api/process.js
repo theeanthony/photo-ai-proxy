@@ -645,36 +645,102 @@ case 'video': {
             }
 
             case 'ai_resize': {
-                const { image_url, mask_url, expansion_direction } = apiParams;
+                const { image_url, mask_url, expansion_direction, expansion_info } = apiParams;
                 
-                // Build contextual prompt based on expansion direction
-                let basePrompt = "seamless background extension, natural environment continuation, ";
+                // ========================================
+                // ADAPTIVE PROMPTING STRATEGY
+                // ========================================
                 
-                if (expansion_direction === 'vertical') {
-                    basePrompt += "extend sky and ground naturally, ";
-                } else if (expansion_direction === 'horizontal') {
-                    basePrompt += "extend left and right sides naturally, ";
-                } else {
-                    basePrompt += "extend all directions naturally, ";
+                let basePrompt = "";
+                let negativePrompt = "";
+                let guidance = 2.5;
+                let strength = 0.85;
+                
+                // Check if this is an extreme expansion (passed from Swift)
+                const isExtreme = expansion_info?.isExtreme || false;
+                
+                // STRATEGY 1: EXTREME EXPANSIONS (9:16 -> 16:9, or vice versa)
+                if (isExtreme) {
+                    
+                    if (expansion_direction === 'vertical') {
+                        basePrompt = 
+                            "Extend the existing sky upward with more of the same sky. " +
+                            "Extend the existing ground downward with more of the same ground. " +
+                            "Continue the current atmosphere and color palette. " +
+                            "Smooth vertical gradient transition. " +
+                            "DO NOT add new objects. DO NOT add people or buildings. " +
+                            "ONLY continue what already exists.";
+                        
+                    } else if (expansion_direction === 'horizontal') {
+                        basePrompt = 
+                            "Extend the existing background to the left and right sides. " +
+                            "Continue the same environment horizontally. " +
+                            "Maintain consistent perspective. " +
+                            "DO NOT add new objects. DO NOT add people or furniture. " +
+                            "ONLY continue the existing background.";
+                        
+                    } else {
+                        basePrompt = 
+                            "Extend the existing background in all directions. " +
+                            "Continue the current environment naturally. " +
+                            "Maintain the same colors and lighting. " +
+                            "DO NOT add new objects or people.";
+                    }
+                    
+                    negativePrompt = 
+                        "stacked images, layered composition, duplicate objects, " +
+                        "repeated people, multiple instances, mirrored symmetry, " +
+                        "copy paste effect, collage, tiled pattern, " +
+                        "new faces, additional buildings, extra furniture, " +
+                        "text, watermarks, borders";
+                    
+                    // ⭐ ULTRA-CONSERVATIVE for extreme cases
+                    guidance = 1.5;  // Minimal creativity
+                    strength = 0.65; // Strong original influence
+                    
+                } 
+                // STRATEGY 2: SMALL/MODERATE EXPANSIONS
+                else {
+                    basePrompt = 
+                        "Seamlessly extend this photograph's background. " +
+                        "PERFECTLY MATCH the existing color palette and tones. " +
+                        "CONTINUE the exact same lighting direction and intensity. " +
+                        "MAINTAIN the same surface textures and materials. " +
+                        "Keep consistent depth of field and focus. " +
+                        "Photorealistic quality with natural transitions. " +
+                        "Extend the environment organically.";
+                    
+                    negativePrompt = 
+                        "different colors, contrasting lighting, new style, " +
+                        "unrelated content, mismatched textures, inconsistent atmosphere, " +
+                        "duplicate subject, artifacts, distortion";
+                    
+                    // ⭐ HIGHER VALUES for better color matching
+                    guidance = 3.0;   // More freedom for blending
+                    strength = 0.92;  // Very close to original
                 }
                 
-                basePrompt += "photorealistic, match lighting and colors, no new objects";
+                // ========================================
+                // EXPERIMENTAL: ADD STYLE ANCHORING
+                // ========================================
+                // This helps small extensions stay coherent with the original
+                basePrompt += " Professional photography. High fidelity color reproduction.";
                 
-                const negativePrompt = "duplicate subject, repeated people, mirrored content, double objects, artifacts, distortion, collage, tiling";
-            
-                console.log(`[JOB: ai_resize] Calling fal-ai/flux-pro/v1/fill`);
-            
+                console.log(`[JOB: ai_resize] Direction: ${expansion_direction}`);
+                console.log(`[JOB: ai_resize] Guidance: ${guidance}, Strength: ${strength}`);
+                console.log(`[JOB: ai_resize] Prompt: ${basePrompt}`);
+                
+                // ========================================
+                // API CALL
+                // ========================================
                 falResult = await fetchFromFal('https://fal.run/fal-ai/flux-pro/v1/fill', {
                     image_url: image_url,
                     mask_url: mask_url,
                     prompt: basePrompt,
                     negative_prompt: negativePrompt,
-                    
-                    // Optimal parameters for outpainting
-                    guidance_scale: 2.5,  // Lower = less creative = less hallucination
+                    guidance_scale: guidance,
                     num_inference_steps: 25,
-                    strength: 0.85,       // Allow original to influence slightly
-                    
+                    strength: strength,
                     output_format: "jpeg",
                     safety_tolerance: "2"
                 });
