@@ -1,21 +1,21 @@
 // api/video-proxy.js
 
-const fetch = require('node-fetch');
-const admin = require('firebase-admin');
+// const fetch = require('node-fetch');
+// const admin = require('firebase-admin');
 
-// 1. INITIALIZE FIREBASE (Reuse existing logic)
-if (!admin.apps.length) {
-    if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
-        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
-        admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
-    } else {
-        console.error("❌ FIREBASE_SERVICE_ACCOUNT_JSON missing");
-    }
-}
+// // 1. INITIALIZE FIREBASE (Reuse existing logic)
+// if (!admin.apps.length) {
+//     if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
+//         const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+//         admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+//     } else {
+//         console.error("❌ FIREBASE_SERVICE_ACCOUNT_JSON missing");
+//     }
+// }
 
-// 2. CONFIG
-// api/video-proxy.js
-// FIXED VERSION - Corrects Topaz URL structure and Fal endpoint handling
+// // 2. CONFIG
+// // api/video-proxy.js
+// // FIXED VERSION - Corrects Topaz URL structure and Fal endpoint handling
 
 const TOPAZ_API_KEY = process.env.TOPAZ_API_KEY;
 const FAL_API_KEY = process.env.FAL_API_KEY;
@@ -189,8 +189,8 @@ async function handleFalSubmit(params, res) {
   const { endpoint, video_url, upscale_factor, target_fps } = params;
   
   // ✅ FIXED: Use endpoint parameter from iOS
-  const falEndpoint = endpoint || 'fal-ai/fast-video-upscaler';
-  
+  const falEndpoint = endpoint || 'fal-ai/topaz/upscale/video';
+
   // ✅ FIXED: Correct Fal API URL structure
   const url = `https://queue.fal.run/${falEndpoint}`;
   
