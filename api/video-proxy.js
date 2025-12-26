@@ -234,7 +234,7 @@ async function handleFalStatus(params, res) {
   const { request_id } = params;
   
   // ✅ FIXED: Correct status endpoint
-  const url = `https://queue.fal.run/fal-ai/fast-video-upscaler/requests/${request_id}/status`;
+  const url = `https://queue.fal.run/fal-ai/topaz/upscale/video/requests/${request_id}/status`;
   
   const response = await fetch(url, {
     method: 'GET',
@@ -258,7 +258,7 @@ async function handleFalResult(params, res) {
   const { request_id } = params;
   
   // ✅ FIXED: Correct result endpoint
-  const url = `https://queue.fal.run/fal-ai/fast-video-upscaler/requests/${request_id}`;
+  const url = `https://queue.fal.run/fal-ai/topaz/upscale/video/requests/${request_id}`;
   
   const response = await fetch(url, {
     method: 'GET',
