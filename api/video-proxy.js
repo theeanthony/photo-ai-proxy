@@ -14,208 +14,266 @@ if (!admin.apps.length) {
 }
 
 // 2. CONFIG
-const TOPAZ_API_KEY = process.env.TOPAZ_API_KEY; // Topaz Video API Key
-const FAL_API_KEY = process.env.FAL_API_KEY;     // Fal API Key
+// api/video-proxy.js
+// FIXED VERSION - Corrects Topaz URL structure and Fal endpoint handling
 
-// Helper for Fal calls
-const fetchFromFal = async (url, body) => {
-    const response = await fetch(url, {
-        method: 'POST',
-        headers: { 
-            'Authorization': `Key ${FAL_API_KEY}`, 
-            'Content-Type': 'application/json' 
-        },
-        body: JSON.stringify(body)
+const TOPAZ_API_KEY = process.env.TOPAZ_API_KEY;
+const FAL_API_KEY = process.env.FAL_API_KEY;
+
+export default async function handler(req, res) {
+  // CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  try {
+    const { jobType, apiParams, userId } = req.body;
+
+    console.log(`📥 [Proxy] Received: ${jobType}`, JSON.stringify(apiParams, null, 2));
+
+    // Route to appropriate handler
+    switch (jobType) {
+      // ============ TOPAZ HANDLERS ============
+      case 'topaz_create':
+        return await handleTopazCreate(apiParams, res);
+      
+      case 'topaz_accept':
+        return await handleTopazAccept(apiParams, res);
+      
+      case 'topaz_complete':
+        return await handleTopazComplete(apiParams, res);
+      
+      case 'topaz_status':
+        return await handleTopazStatus(apiParams, res);
+
+      // ============ FAL HANDLERS ============
+      case 'fal_video_submit':
+        return await handleFalSubmit(apiParams, res);
+      
+      case 'fal_video_status':
+        return await handleFalStatus(apiParams, res);
+      
+      case 'fal_video_result':
+        return await handleFalResult(apiParams, res);
+
+      default:
+        return res.status(400).json({ error: `Unknown jobType: ${jobType}` });
+    }
+
+  } catch (error) {
+    console.error('❌ [Proxy] Error:', error);
+    return res.status(500).json({ 
+      error: error.message,
+      details: error.stack
     });
-    if (!response.ok) {
-        const txt = await response.text();
-        throw new Error(`Fal Error (${response.status}): ${txt}`);
-    }
-    return response.json();
-};
-
-module.exports = async (req, res) => {
-    // Standard CORS
-    res.setHeader('Access-Control-Allow-Credentials', true);
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
-    if (req.method === 'OPTIONS') return res.status(200).end();
-    if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
-
-    // Auth Check
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ error: "Unauthorized" });
-    }
-
-    try {
-        const { jobType, apiParams, userId } = req.body;
-        console.log(`[VIDEO-PROXY] Job: ${jobType} | User: ${userId}`);
-
-        let result;
-
-        switch (jobType) {
-
-            // =========================================================
-            // 💎 TOPAZ VIDEO AI HANDSHAKES
-            // =========================================================
-
-            // Step 1: Create Request
-            case 'topaz_create': {
-                console.log("[TOPAZ] Creating Request...");
-                
-                const response = await fetch('https://api.topazlabs.com/video/v1/requests', {
-                    method: 'POST',
-                    headers: {
-                        'x-api-key': TOPAZ_API_KEY,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(apiParams) // Swift sends { source:..., output:..., filters:... }
-                });
-
-                const data = await response.json();
-                if (!response.ok) throw new Error(JSON.stringify(data));
-                result = data; // Returns { id: "..." }
-                break;
-            }
-
-            // Step 2: Accept Request (Get S3 URL for Swift)
-            case 'topaz_accept': {
-                const { request_id } = apiParams;
-                console.log(`[TOPAZ] Accepting Request: ${request_id}`);
-
-                const response = await fetch(`https://api.topazlabs.com/video/v1/requests/${request_id}/accept`, {
-                    method: 'POST',
-                    headers: { 'x-api-key': TOPAZ_API_KEY }
-                });
-
-                const data = await response.json();
-                if (!response.ok) throw new Error(JSON.stringify(data));
-                
-                // Returns { uploadUrls: [...], uploadId: ... }
-                result = data; 
-                break;
-            }
-
-            // Step 3: Complete Upload (Swift finished S3 PUT)
-            case 'topaz_complete': {
-                const { request_id, parts } = apiParams; // parts = [{ partNum: 1, eTag: "..." }]
-                console.log(`[TOPAZ] Completing Upload: ${request_id}`);
-
-                const response = await fetch(`https://api.topazlabs.com/video/v1/requests/${request_id}/complete-upload`, {
-                    method: 'POST',
-                    headers: {
-                        'x-api-key': TOPAZ_API_KEY,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ uploadResults: parts })
-                });
-
-                // Topaz might return 204 No Content on success, or JSON
-                if (response.status === 204) {
-                    result = { status: "processing_started" };
-                } else {
-                    const data = await response.json();
-                    if (!response.ok) throw new Error(JSON.stringify(data));
-                    result = data;
-                }
-                break;
-            }
-
-            // Step 4: Check Status (Polling)
-            case 'topaz_status': {
-                const { request_id } = apiParams;
-                const response = await fetch(`https://api.topazlabs.com/video/v1/requests/${request_id}/status`, {
-                    method: 'GET',
-                    headers: { 'x-api-key': TOPAZ_API_KEY }
-                });
-                
-                const data = await response.json();
-                result = data;
-                break;
-            }
-
-
-            // =========================================================
-            // 🚀 FAL.AI VIDEO (Queue Based)
-            // =========================================================
-
-// ... inside switch(jobType) ...
-
-case 'fal_video_submit': {
-    console.log("[FAL] Submitting Video Upscale...");
-    
-    // 1. Define the Endpoint (Using Fal's Upscaler)
-    // We use the '/queue/' endpoint to get a request_id back immediately
-    const endpoint = 'https://queue.fal.run/fal-ai/creative-upscaler-video'; 
-    
-    // 2. Prepare Body
-    // Swift sends: { video_url: "...", upscale_factor: 2.0 }
-    // We map it to the model's specific schema.
-    const payload = {
-        video_url: apiParams.video_url,
-        upscale_factor: apiParams.upscale_factor || 2.0,
-        // Add any other model-specific defaults here
-    };
-
-    const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 
-            'Authorization': `Key ${FAL_API_KEY}`,
-            'Content-Type': 'application/json' 
-        },
-        body: JSON.stringify(payload)
-    });
-
-    if (!response.ok) {
-        const txt = await response.text();
-        throw new Error(`Fal Submit Failed (${response.status}): ${txt}`);
-    }
-
-    const json = await response.json();
-    
-    // Fal returns { request_id: "..." }
-    result = json; 
-    break;
+  }
 }
-            case 'fal_video_status': {
-                const { request_id } = apiParams;
-                // Basic Queue Status check
-                const response = await fetch(`https://queue.fal.run/fal-ai/topaz/requests/${request_id}/status`, {
-                    method: 'GET',
-                    headers: { 'Authorization': `Key ${FAL_API_KEY}` }
-                });
-                
-                // Handle 404 race condition
-                if (response.status === 404) {
-                    result = { status: "IN_QUEUE" };
-                } else {
-                    result = await response.json();
-                }
-                break;
-            }
-            
-            case 'fal_video_result': {
-                const { request_id } = apiParams;
-                const response = await fetch(`https://queue.fal.run/fal-ai/topaz/requests/${request_id}`, {
-                    method: 'GET',
-                    headers: { 'Authorization': `Key ${FAL_API_KEY}` }
-                });
-                
-                result = await response.json();
-                break;
-            }
 
-            default:
-                throw new Error(`Unknown Video Job Type: ${jobType}`);
-        }
+// ============================================
+// TOPAZ HANDLERS (FIXED)
+// ============================================
 
-        res.status(200).json(result);
+async function handleTopazCreate(params, res) {
+  // ✅ FIXED: Correct URL structure (no /v1/requests)
+  const url = 'https://api.topazlabs.com/video/';
+  
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'X-API-Key': TOPAZ_API_KEY,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify(params)
+  });
 
-    } catch (error) {
-        console.error("🔥 Video Proxy Error:", error.message);
-        res.status(500).json({ error: error.message });
+  const data = await response.json();
+
+  if (!response.ok) {
+    console.error('🔴 Topaz Create Failed:', data);
+    throw new Error(`Topaz Create Failed (${response.status}): ${JSON.stringify(data)}`);
+  }
+
+  console.log('✅ Topaz Create Success:', data);
+  return res.status(200).json(data);
+}
+
+async function handleTopazAccept(params, res) {
+  const { request_id } = params;
+  
+  // ✅ FIXED: Use PATCH not POST (per Topaz docs)
+  const url = `https://api.topazlabs.com/video/${request_id}/accept`;
+  
+  const response = await fetch(url, {
+    method: 'PATCH',
+    headers: {
+      'X-API-Key': TOPAZ_API_KEY,
+      'Accept': 'application/json'
     }
-};
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    console.error('🔴 Topaz Accept Failed:', data);
+    throw new Error(`Topaz Accept Failed (${response.status}): ${JSON.stringify(data)}`);
+  }
+
+  console.log('✅ Topaz Accept Success:', data);
+  return res.status(200).json(data);
+}
+
+async function handleTopazComplete(params, res) {
+  const { request_id, uploadResults } = params;
+  
+  // ✅ FIXED: Correct endpoint name
+  const url = `https://api.topazlabs.com/video/${request_id}/complete-upload`;
+  
+  const response = await fetch(url, {
+    method: 'PATCH',
+    headers: {
+      'X-API-Key': TOPAZ_API_KEY,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
+    body: JSON.stringify({ uploadResults })
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    console.error('🔴 Topaz Complete Failed:', data);
+    throw new Error(`Topaz Complete Failed (${response.status}): ${JSON.stringify(data)}`);
+  }
+
+  console.log('✅ Topaz Complete Success:', data);
+  return res.status(200).json(data);
+}
+
+async function handleTopazStatus(params, res) {
+  const { request_id } = params;
+  
+  const url = `https://api.topazlabs.com/video/${request_id}/status`;
+  
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'X-API-Key': TOPAZ_API_KEY,
+      'Accept': 'application/json'
+    }
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    console.error('🔴 Topaz Status Failed:', data);
+    throw new Error(`Topaz Status Failed (${response.status}): ${JSON.stringify(data)}`);
+  }
+
+  return res.status(200).json(data);
+}
+
+// ============================================
+// FAL HANDLERS (FIXED)
+// ============================================
+
+async function handleFalSubmit(params, res) {
+  const { endpoint, video_url, upscale_factor, target_fps } = params;
+  
+  // ✅ FIXED: Use endpoint parameter from iOS
+  const falEndpoint = endpoint || 'fal-ai/fast-video-upscaler';
+  
+  // ✅ FIXED: Correct Fal API URL structure
+  const url = `https://queue.fal.run/${falEndpoint}`;
+  
+  const payload = {
+    video_url,
+    upscale_factor: upscale_factor || 2
+  };
+  
+  // Add optional parameters
+  if (target_fps) {
+    payload.target_fps = target_fps;
+  }
+
+  console.log('📤 [Fal] Submitting to:', url, payload);
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Key ${FAL_API_KEY}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    console.error('🔴 Fal Submit Failed:', data);
+    throw new Error(`Fal Submit Failed (${response.status}): ${JSON.stringify(data)}`);
+  }
+
+  console.log('✅ Fal Submit Success:', data);
+  
+  // ✅ Fal returns { request_id: "..." }
+  return res.status(200).json({ 
+    request_id: data.request_id 
+  });
+}
+
+async function handleFalStatus(params, res) {
+  const { request_id } = params;
+  
+  // ✅ FIXED: Correct status endpoint
+  const url = `https://queue.fal.run/fal-ai/fast-video-upscaler/requests/${request_id}/status`;
+  
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Key ${FAL_API_KEY}`,
+      'Accept': 'application/json'
+    }
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    console.error('🔴 Fal Status Failed:', data);
+    throw new Error(`Fal Status Failed (${response.status}): ${JSON.stringify(data)}`);
+  }
+
+  return res.status(200).json(data);
+}
+
+async function handleFalResult(params, res) {
+  const { request_id } = params;
+  
+  // ✅ FIXED: Correct result endpoint
+  const url = `https://queue.fal.run/fal-ai/fast-video-upscaler/requests/${request_id}`;
+  
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Key ${FAL_API_KEY}`,
+      'Accept': 'application/json'
+    }
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    console.error('🔴 Fal Result Failed:', data);
+    throw new Error(`Fal Result Failed (${response.status}): ${JSON.stringify(data)}`);
+  }
+
+  return res.status(200).json(data);
+}
