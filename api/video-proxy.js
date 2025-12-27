@@ -78,6 +78,7 @@ async function handleTopazAccept(params, res) {
   });
 
   const data = await response.json();
+  console.log(`🔍 [Topaz Status Full Response]:`, JSON.stringify(data, null, 2));
 
   if (!response.ok) {
     console.error('🔴 Topaz Accept Failed:', data);
