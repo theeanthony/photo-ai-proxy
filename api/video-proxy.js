@@ -145,75 +145,82 @@ async function handleTopazStatus(params, res) {
 // ============================================
 
 async function handleFalSubmit(params, res) {
-  const { video_url, upscale_factor, model_id } = params;
+    const { video_url, upscale_factor, model_id } = params;
+    
+    // Default to the single endpoint if not provided
+    const targetModel = model_id || 'fal-ai/topaz/upscale/video';
+    const url = `https://queue.fal.run/${targetModel}`;
+    
+    const payload = { video_url, upscale_factor: upscale_factor || 2.0 };
+    console.log(`📤 [Fal] Submitting to ${targetModel}...`);
   
-  // Default to the single endpoint if not provided, but Swift sends it now
-  const targetModel = model_id || 'fal-ai/topaz/upscale/video';
-  const url = `https://queue.fal.run/${targetModel}`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Authorization': `Key ${FAL_API_KEY}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
   
-  const payload = { video_url, upscale_factor: upscale_factor || 2.0 };
-  console.log(`📤 [Fal] Submitting to ${targetModel}...`);
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Authorization': `Key ${FAL_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
-  });
-
-  if (!response.ok) {
+    if (!response.ok) {
+      const text = await response.text();
+      console.error('🔴 Fal Submit Failed:', text);
+      throw new Error(`Fal Submit Error: ${text}`);
+    }
+    
+    const data = await response.json();
+    console.log('✅ [Fal] Submit Success:', data);
+    return res.status(200).json(data);
+  }
+  
+  async function handleFalStatus(params, res) {
+    const { request_id, model_id } = params;
+    
+    const targetModel = model_id || 'fal-ai/topaz/upscale/video';
+    const url = `https://queue.fal.run/${targetModel}/requests/${request_id}/status`;
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { 'Authorization': `Key ${FAL_API_KEY}`, 'Accept': 'application/json' }
+    });
+  
+    if (!response.ok) {
+      if (response.status === 404) return res.status(200).json({ status: "IN_QUEUE" });
+      const text = await response.text();
+      console.error('🔴 Fal Status Failed:', text);
+      throw new Error(`Fal Status Error: ${text}`);
+    }
+  
     const text = await response.text();
-    console.error('🔴 Fal Submit Failed:', text);
-    throw new Error(`Fal Submit Error: ${text}`);
+    try {
+        const data = JSON.parse(text);
+        // ✅ DEBUG LOGGING
+        console.log(`🔍 [Fal Status] ID: ${request_id} | Status: ${data.status}`);
+        return res.status(200).json(data);
+    } catch (e) {
+        console.error("🔴 JSON Parse Error. Raw text:", text);
+        throw new Error(`Received invalid JSON from Fal: ${text.substring(0, 50)}...`);
+    }
   }
   
-  const data = await response.json();
-  return res.status(200).json(data);
-}
-
-async function handleFalStatus(params, res) {
-  const { request_id, model_id } = params;
+  async function handleFalResult(params, res) {
+    const { request_id, model_id } = params;
+    const targetModel = model_id || 'fal-ai/topaz/upscale/video';
+    const url = `https://queue.fal.run/${targetModel}/requests/${request_id}`;
+    
+    console.log(`📥 [Fal Result] Fetching for ${request_id}...`);
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: { 'Authorization': `Key ${FAL_API_KEY}`, 'Accept': 'application/json' }
+    });
   
-  const targetModel = model_id || 'fal-ai/topaz/upscale/video';
-  const url = `https://queue.fal.run/${targetModel}/requests/${request_id}/status`;
+    if (!response.ok) {
+      const text = await response.text();
+      console.error('🔴 Fal Result Failed:', text);
+      throw new Error(`Fal Result Error: ${text}`);
+    }
   
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: { 'Authorization': `Key ${FAL_API_KEY}`, 'Accept': 'application/json' }
-  });
-
-  if (!response.ok) {
-    if (response.status === 404) return res.status(200).json({ status: "IN_QUEUE" });
-    const text = await response.text();
-    console.error('🔴 Fal Status Failed:', text);
-    throw new Error(`Fal Status Error: ${text}`);
+    const data = await response.json();
+    // ✅ DEBUG LOGGING
+    console.log(`✅ [Fal Result] Success:`, JSON.stringify(data, null, 2));
+    return res.status(200).json(data);
   }
-
-  const text = await response.text();
-  try {
-      const data = JSON.parse(text);
-      return res.status(200).json(data);
-  } catch (e) {
-      console.error("🔴 JSON Parse Error. Raw text:", text);
-      throw new Error(`Received invalid JSON from Fal: ${text.substring(0, 50)}...`);
-  }
-}
-
-async function handleFalResult(params, res) {
-  const { request_id, model_id } = params;
-  const targetModel = model_id || 'fal-ai/topaz/upscale/video';
-  const url = `https://queue.fal.run/${targetModel}/requests/${request_id}`;
-  
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: { 'Authorization': `Key ${FAL_API_KEY}`, 'Accept': 'application/json' }
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    console.error('🔴 Fal Result Failed:', text);
-    throw new Error(`Fal Result Error: ${text}`);
-  }
-
-  const data = await response.json();
-  return res.status(200).json(data);
-}
