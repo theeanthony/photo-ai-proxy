@@ -126,16 +126,29 @@ async function handleTopazComplete(params, res) {
 }
 
 async function handleTopazStatus(params, res) {
-  const { request_id } = params;
-  const url = `https://api.topazlabs.com/video/${request_id}/status`;
+    const { request_id } = params;
+    const url = `https://api.topazlabs.com/video/${request_id}/status`;
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'X-API-Key': TOPAZ_API_KEY,
+        'Accept': 'application/json'
+      }
+    });
   
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: {
-      'X-API-Key': TOPAZ_API_KEY,
-      'Accept': 'application/json'
+    const data = await response.json();
+  
+    if (!response.ok) {
+      console.error('🔴 Topaz Status Failed:', data);
+      throw new Error(`Topaz Status Failed (${response.status}): ${JSON.stringify(data)}`);
     }
-  });
+  
+    // ✅ DEBUG LOGGING: Print what Topaz sends back
+    console.log(`🔍 [Topaz Status] ID: ${request_id} | Status: ${data.status} | Progress: ${data.progress}%`);
+  
+    return res.status(200).json(data);
+  }
 
   const data = await response.json();
 
