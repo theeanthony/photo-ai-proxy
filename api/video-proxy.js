@@ -98,8 +98,8 @@ async function handleTopazAccept(params, res) {
 }
 
 async function handleTopazComplete(params, res) {
-  // ⚠️ CRITICAL FIX: Swift sends 'parts', not 'uploadResults'
-  const { request_id, parts } = params;
+  // ✅ FIXED: Swift now sends 'uploadResults' to match Topaz API docs
+  const { request_id, uploadResults } = params;
   
   const url = `https://api.topazlabs.com/video/${request_id}/complete-upload`;
   
@@ -110,8 +110,8 @@ async function handleTopazComplete(params, res) {
       'Content-Type': 'application/json',
       'Accept': 'application/json'
     },
-    // Topaz API expects body: { "parts": [...] }
-    body: JSON.stringify({ parts })
+    // ✅ FIXED: Pass 'uploadResults' directly to the API
+    body: JSON.stringify({ uploadResults })
   });
 
   const data = await response.json();
