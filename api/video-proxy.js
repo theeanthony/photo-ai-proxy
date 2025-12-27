@@ -1,22 +1,13 @@
 // api/video-proxy.js
 
-// const fetch = require('node-fetch'); // Uncomment if running locally without global fetch
+// const fetch = require('node-fetch'); // Uncomment if running locally on Node < 18
 // const admin = require('firebase-admin');
-
-// // 1. INITIALIZE FIREBASE (Reuse existing logic)
-// if (!admin.apps.length) {
-//     if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
-//         const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
-//         admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
-//     } else {
-//         console.error("❌ FIREBASE_SERVICE_ACCOUNT_JSON missing");
-//     }
-// }
 
 const TOPAZ_API_KEY = process.env.TOPAZ_API_KEY;
 const FAL_API_KEY = process.env.FAL_API_KEY;
 
-export default async function handler(req, res) {
+// ✅ FIXED: Use CommonJS syntax for Vercel/Node compatibility
+module.exports = async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -44,7 +35,7 @@ export default async function handler(req, res) {
     console.error('❌ [Proxy] Error:', error);
     return res.status(500).json({ error: error.message });
   }
-}
+};
 
 // ============================================
 // TOPAZ HANDLERS
@@ -98,7 +89,6 @@ async function handleTopazAccept(params, res) {
 }
 
 async function handleTopazComplete(params, res) {
-  // ✅ FIXED: Swift now sends 'uploadResults' to match Topaz API docs
   const { request_id, uploadResults } = params;
   
   const url = `https://api.topazlabs.com/video/${request_id}/complete-upload`;
@@ -110,7 +100,6 @@ async function handleTopazComplete(params, res) {
       'Content-Type': 'application/json',
       'Accept': 'application/json'
     },
-    // ✅ FIXED: Pass 'uploadResults' directly to the API
     body: JSON.stringify({ uploadResults })
   });
 
@@ -126,29 +115,16 @@ async function handleTopazComplete(params, res) {
 }
 
 async function handleTopazStatus(params, res) {
-    const { request_id } = params;
-    const url = `https://api.topazlabs.com/video/${request_id}/status`;
-    
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'X-API-Key': TOPAZ_API_KEY,
-        'Accept': 'application/json'
-      }
-    });
+  const { request_id } = params;
+  const url = `https://api.topazlabs.com/video/${request_id}/status`;
   
-    const data = await response.json();
-  
-    if (!response.ok) {
-      console.error('🔴 Topaz Status Failed:', data);
-      throw new Error(`Topaz Status Failed (${response.status}): ${JSON.stringify(data)}`);
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'X-API-Key': TOPAZ_API_KEY,
+      'Accept': 'application/json'
     }
-  
-    // ✅ DEBUG LOGGING: Print what Topaz sends back
-    console.log(`🔍 [Topaz Status] ID: ${request_id} | Status: ${data.status} | Progress: ${data.progress}%`);
-  
-    return res.status(200).json(data);
-  }
+  });
 
   const data = await response.json();
 
@@ -156,6 +132,9 @@ async function handleTopazStatus(params, res) {
     console.error('🔴 Topaz Status Failed:', data);
     throw new Error(`Topaz Status Failed (${response.status}): ${JSON.stringify(data)}`);
   }
+
+  // ✅ DEBUG LOGGING: Print what Topaz sends back (helps debugging percentages)
+  console.log(`🔍 [Topaz Status] ID: ${request_id} | Status: ${data.status} | Progress: ${data.progress}%`);
 
   return res.status(200).json(data);
 }
@@ -193,7 +172,6 @@ async function handleFalSubmit(params, res) {
 async function handleFalStatus(params, res) {
   const { request_id, model_id } = params;
   
-  // Use the exact ID sent from Swift (fal-ai/topaz/upscale/video)
   const targetModel = model_id || 'fal-ai/topaz/upscale/video';
   const url = `https://queue.fal.run/${targetModel}/requests/${request_id}/status`;
   
@@ -203,14 +181,12 @@ async function handleFalStatus(params, res) {
   });
 
   if (!response.ok) {
-    // Handle queue delay (404 usually means not ready or wrong ID, but sometimes just queue lag)
     if (response.status === 404) return res.status(200).json({ status: "IN_QUEUE" });
     const text = await response.text();
     console.error('🔴 Fal Status Failed:', text);
     throw new Error(`Fal Status Error: ${text}`);
   }
 
-  // Safe JSON Parsing
   const text = await response.text();
   try {
       const data = JSON.parse(text);
