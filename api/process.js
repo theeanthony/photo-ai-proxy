@@ -1,7 +1,71 @@
 const fetch = require('node-fetch');
+const crypto = require('crypto');
 const admin = require('../lib/firebase-admin');
 
 const FAL_API_KEY = process.env.FAL_API_KEY;
+
+// ---------------------------------------------------------
+// Sign in with Apple — token revocation (required on account
+// deletion by App Store guideline 5.1.1(v)).
+// Uses Node's built-in crypto (no extra npm dependency).
+// Env required: APPLE_TEAM_ID, APPLE_KEY_ID, APPLE_CLIENT_ID
+// (the app's bundle id), APPLE_PRIVATE_KEY (.p8 contents).
+// ---------------------------------------------------------
+const base64url = (input) =>
+    Buffer.from(input).toString('base64').replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_');
+
+// Builds the short-lived ES256 "client secret" JWT Apple requires to authenticate the app.
+const makeAppleClientSecret = () => {
+    const teamId = process.env.APPLE_TEAM_ID;
+    const keyId = process.env.APPLE_KEY_ID;
+    const clientId = process.env.APPLE_CLIENT_ID;
+    // Vercel stores the .p8 with escaped newlines; restore real newlines.
+    const privateKey = (process.env.APPLE_PRIVATE_KEY || '').replace(/\\n/g, '\n');
+
+    const now = Math.floor(Date.now() / 1000);
+    const header = { alg: 'ES256', kid: keyId };
+    const payload = { iss: teamId, iat: now, exp: now + 300, aud: 'https://appleid.apple.com', sub: clientId };
+
+    const signingInput = `${base64url(JSON.stringify(header))}.${base64url(JSON.stringify(payload))}`;
+    // ES256 JWTs need the raw (P1363) r||s signature, not DER.
+    const signature = crypto.sign('sha256', Buffer.from(signingInput), { key: privateKey, dsaEncoding: 'ieee-p1363' });
+    return `${signingInput}.${base64url(signature)}`;
+};
+
+// Exchanges the authorizationCode for a token, then revokes it at Apple.
+const revokeAppleToken = async (authorizationCode) => {
+    const clientId = process.env.APPLE_CLIENT_ID;
+    const clientSecret = makeAppleClientSecret();
+
+    const tokenRes = await fetch('https://appleid.apple.com/auth/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+            client_id: clientId,
+            client_secret: clientSecret,
+            code: authorizationCode,
+            grant_type: 'authorization_code'
+        }).toString()
+    });
+    if (!tokenRes.ok) throw new Error(`Apple token exchange failed (${tokenRes.status}): ${await tokenRes.text()}`);
+
+    const tokenJson = await tokenRes.json();
+    const token = tokenJson.refresh_token || tokenJson.access_token;
+    const tokenTypeHint = tokenJson.refresh_token ? 'refresh_token' : 'access_token';
+    if (!token) throw new Error('Apple token exchange returned no token to revoke.');
+
+    const revokeRes = await fetch('https://appleid.apple.com/auth/revoke', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+            client_id: clientId,
+            client_secret: clientSecret,
+            token: token,
+            token_type_hint: tokenTypeHint
+        }).toString()
+    });
+    if (!revokeRes.ok) throw new Error(`Apple revoke failed (${revokeRes.status}): ${await revokeRes.text()}`);
+};
 
 /**
  * Performs a synchronous (long-waiting) call to a Fal.ai endpoint.
@@ -208,6 +272,60 @@ module.exports = async (req, res) => {
         }
         break;
     }
+    case 'delete_account': {
+        // SECURITY: destructive op — never trust the body `userId`. Verify the
+        // Firebase ID token and operate strictly on the verified uid.
+        const authHeader = req.headers.authorization || '';
+        const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+        if (!idToken) {
+            return res.status(401).json({ error: 'Missing authorization token.' });
+        }
+
+        let decoded;
+        try {
+            decoded = await admin.auth().verifyIdToken(idToken);
+        } catch (e) {
+            console.error('[DELETE-ACCOUNT] Invalid ID token:', e.message);
+            return res.status(401).json({ error: 'Invalid authorization token.' });
+        }
+
+        const uid = decoded.uid;
+        const provider = decoded.firebase && decoded.firebase.sign_in_provider;
+        const appleAuthorizationCode = apiParams.appleAuthorizationCode;
+        console.log(`[DELETE-ACCOUNT] Deleting uid=${uid} provider=${provider}`);
+
+        // 1. Delete the user's Storage folders (best-effort; a missing folder is fine).
+        try {
+            const bucket = admin.storage().bucket();
+            await bucket.deleteFiles({ prefix: `input_images/${uid}/` });
+            await bucket.deleteFiles({ prefix: `redux-generated-photos/${uid}/` });
+        } catch (e) {
+            console.error('[DELETE-ACCOUNT] Storage cleanup error:', e.message);
+        }
+
+        // 2. Delete the Firestore user doc. (Leave claimedDevices intact — anti-abuse.)
+        try {
+            await admin.firestore().doc(`users/${uid}`).delete();
+        } catch (e) {
+            console.error('[DELETE-ACCOUNT] Firestore delete error:', e.message);
+        }
+
+        // 3. Revoke the Sign in with Apple token, if applicable + configured.
+        if (appleAuthorizationCode && process.env.APPLE_TEAM_ID) {
+            try {
+                await revokeAppleToken(appleAuthorizationCode);
+                console.log('[DELETE-ACCOUNT] Apple token revoked.');
+            } catch (e) {
+                console.error('[DELETE-ACCOUNT] Apple revoke error:', e.message);
+            }
+        }
+
+        // 4. Finally delete the Auth user.
+        await admin.auth().deleteUser(uid);
+
+        return res.status(200).json({ ok: true });
+    }
+
 case 'new_resize': {
     const { image_url, mask_url, expansion_direction } = apiParams;
     
